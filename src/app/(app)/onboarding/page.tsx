@@ -6,22 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 
-const THEME_COLORS = [
-  '#3B82F6', // Blue
-  '#8B5CF6', // Purple
-  '#EC4899', // Pink
-  '#EF4444', // Red
-  '#F59E0B', // Orange
-  '#10B981', // Green
-  '#06B6D4', // Cyan
-  '#6366F1', // Indigo
-]
-
 export default function OnboardingPage() {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [displayName, setDisplayName] = useState('')
-  const [themeColor, setThemeColor] = useState(THEME_COLORS[0])
   const [groupAction, setGroupAction] = useState<'create' | 'join' | null>(null)
   const [groupName, setGroupName] = useState('')
   const [inviteCode, setInviteCode] = useState('')
@@ -47,14 +35,26 @@ export default function OnboardingPage() {
     setError('')
 
     try {
-      // For now, we'll use a placeholder userId
-      // In production, this would come from authentication
-      const userId = 'placeholder-user-id'
+      // First, create the user account
+      const userResponse = await fetch('/api/users/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          displayName,
+        }),
+      })
 
+      const userData = await userResponse.json()
+
+      if (!userResponse.ok) {
+        throw new Error(userData.error || 'Failed to create user account')
+      }
+
+      // Then create the group with the real user ID
       const response = await fetch('/api/groups/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: groupName, userId }),
+        body: JSON.stringify({ name: groupName, userId: userData.user.id }),
       })
 
       const data = await response.json()
@@ -83,12 +83,26 @@ export default function OnboardingPage() {
     setError('')
 
     try {
-      const userId = 'placeholder-user-id'
+      // First, create the user account
+      const userResponse = await fetch('/api/users/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          displayName,
+        }),
+      })
 
+      const userData = await userResponse.json()
+
+      if (!userResponse.ok) {
+        throw new Error(userData.error || 'Failed to create user account')
+      }
+
+      // Then join the group with the real user ID
       const response = await fetch('/api/groups/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inviteCode, userId }),
+        body: JSON.stringify({ inviteCode, userId: userData.user.id }),
       })
 
       const data = await response.json()
@@ -134,34 +148,7 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {step === 2 && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-3">
-                  Choose your theme color
-                </label>
-                <div className="grid grid-cols-4 gap-3">
-                  {THEME_COLORS.map((color) => (
-                    <button
-                      key={color}
-                      onClick={() => setThemeColor(color)}
-                      className={`w-full aspect-square rounded-xl transition-transform ${
-                        themeColor === color ? 'scale-110 ring-4 ring-offset-2 ring-blue-500' : ''
-                      }`}
-                      style={{
-                        backgroundColor: color,
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-              <Button onClick={handleNext} className="w-full">
-                Continue
-              </Button>
-            </div>
-          )}
-
-          {step === 3 && !groupAction && (
+          {step === 2 && !groupAction && (
             <div className="space-y-4">
               <p className="text-center text-gray-600 dark:text-gray-400">
                 Do you want to create a new group or join an existing one?
@@ -182,7 +169,7 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {step === 3 && groupAction === 'create' && (
+          {step === 2 && groupAction === 'create' && (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">
@@ -214,7 +201,7 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {step === 3 && groupAction === 'join' && (
+          {step === 2 && groupAction === 'join' && (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">

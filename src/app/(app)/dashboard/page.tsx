@@ -1,185 +1,65 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { formatTimestamp, isDataStale, getVibeColor } from '@/lib/utils'
-
-interface CheckIn {
-  id: string
-  vibeScore: number
-  tags: { tag: string }[]
-  createdAt: string
-  user: {
-    id: string
-    displayName: string
-    themeColor: string
-  }
-}
+import { getVibeColor } from '@/lib/utils'
+import { Settings, Activity } from 'lucide-react'
+import Link from 'next/link'
 
 export default function DashboardPage() {
   const router = useRouter()
-  const [checkIns, setCheckIns] = useState<CheckIn[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    // In production, this would fetch real data
-    // For now, showing mock data
-    const mockData: CheckIn[] = [
-      {
-        id: '1',
-        vibeScore: 8,
-        tags: [{ tag: 'exercise' }, { tag: 'friends' }],
-        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-        user: {
-          id: '1',
-          displayName: 'Alice',
-          themeColor: '#3B82F6',
-        },
-      },
-      {
-        id: '2',
-        vibeScore: 6,
-        tags: [{ tag: 'work' }, { tag: 'relax' }],
-        createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-        user: {
-          id: '2',
-          displayName: 'Bob',
-          themeColor: '#8B5CF6',
-        },
-      },
-      {
-        id: '3',
-        vibeScore: 4,
-        tags: [{ tag: 'cleaning' }],
-        createdAt: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
-        user: {
-          id: '3',
-          displayName: 'Charlie',
-          themeColor: '#EC4899',
-        },
-      },
-    ]
-    
-    setCheckIns(mockData)
-    setLoading(false)
-  }, [])
-
-  const averageVibe = checkIns.length > 0
-    ? Math.round(checkIns.reduce((sum, ci) => sum + ci.vibeScore, 0) / checkIns.length)
-    : 0
+  // Mock average vibe for now - in production this would fetch the last 7 days average
+  const averageVibe = 7
 
   return (
-    <div className="min-h-screen p-4 pb-20">
-      <div className="max-w-3xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="pt-8 pb-4">
-          <h1 className="text-3xl font-bold mb-2">🛸 Group Pulse</h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Stay in sync with your group
-          </p>
+    <div className="min-h-screen p-4 pb-20 flex flex-col items-center justify-center">
+      <div className="w-full max-w-md space-y-8">
+        {/* Header with Settings Link */}
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">🛸 Group Pulse</h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              Your group's wellbeing
+            </p>
+          </div>
+          <Link href="/settings">
+            <Button variant="ghost" size="icon">
+              <Settings className="w-6 h-6" />
+            </Button>
+          </Link>
         </div>
 
-        {/* Average Vibe */}
-        {checkIns.length > 0 && (
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                  Average Group Vibe
-                </p>
-                <p className="text-4xl font-mono font-bold" style={{ color: getVibeColor(averageVibe) }}>
-                  {averageVibe}/10
-                </p>
-              </div>
-              <Button onClick={() => router.push('/check-in')}>
-                New Vibe Check
-              </Button>
-            </div>
-          </Card>
-        )}
+        {/* Average Vibe Card */}
+        <Card className="p-8 text-center space-y-4">
+          <p className="text-lg text-gray-600 dark:text-gray-400">
+            Average Group Vibe (Last 7 Days)
+          </p>
+          <div
+            className="text-8xl font-mono font-bold"
+            style={{ color: getVibeColor(averageVibe) }}
+          >
+            {averageVibe}
+          </div>
+        </Card>
 
-        {/* Check-in Cards */}
-        <div className="space-y-4">
-          {loading ? (
-            <Card>
-              <p className="text-center text-gray-500">Loading...</p>
-            </Card>
-          ) : checkIns.length === 0 ? (
-            <Card>
-              <div className="text-center space-y-4 py-8">
-                <p className="text-gray-600 dark:text-gray-400">
-                  No check-ins yet. Be the first!
-                </p>
-                <Button onClick={() => router.push('/check-in')}>
-                  Create First Vibe Check
-                </Button>
-              </div>
-            </Card>
-          ) : (
-            checkIns.map((checkIn) => {
-              const stale = isDataStale(checkIn.createdAt)
-              return (
-                <Card
-                  key={checkIn.id}
-                  className={stale ? 'opacity-60' : ''}
-                >
-                  <div className="flex items-center gap-4">
-                    {/* Avatar with colored ring */}
-                    <div
-                      className="w-16 h-16 rounded-full flex items-center justify-center text-2xl"
-                      style={{
-                        backgroundColor: checkIn.user.themeColor + '20',
-                        border: `3px solid ${checkIn.user.themeColor}`,
-                      }}
-                    >
-                      {checkIn.user.displayName[0].toUpperCase()}
-                    </div>
+        {/* Main Action */}
+        <Button
+          className="w-full h-16 text-xl"
+          onClick={() => router.push('/check-in')}
+        >
+          Submit Vibe Check
+        </Button>
 
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p
-                          className="font-semibold"
-                          style={{ color: checkIn.user.themeColor }}
-                        >
-                          {checkIn.user.displayName}
-                        </p>
-                        <span className="text-sm text-gray-500">
-                          {formatTimestamp(checkIn.createdAt)}
-                        </span>
-                      </div>
-                      {checkIn.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {checkIn.tags.map((t, i) => (
-                            <span
-                              key={i}
-                              className="text-xs px-2 py-1 rounded-full"
-                              style={{
-                                backgroundColor: checkIn.user.themeColor + '20',
-                                color: checkIn.user.themeColor,
-                              }}
-                            >
-                              {t.tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Vibe Score */}
-                    <div
-                      className="text-4xl font-mono font-bold"
-                      style={{ color: getVibeColor(checkIn.vibeScore) }}
-                    >
-                      {checkIn.vibeScore}
-                    </div>
-                  </div>
-                </Card>
-              )
-            })
-          )}
+        {/* Stats Link */}
+        <div className="text-center">
+          <Link
+            href="/stats"
+            className="text-blue-500 hover:underline flex items-center justify-center gap-2"
+          >
+            <Activity className="w-4 h-4" />
+            View Group Stats & Activity
+          </Link>
         </div>
       </div>
     </div>
