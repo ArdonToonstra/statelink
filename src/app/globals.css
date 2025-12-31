@@ -4,20 +4,31 @@
 
 @layer base {
   :root {
-    /* Light mode - "Off-White" neutral canvas */
-    --background: 245 245 247; /* #F5F5F7 */
-    --foreground: 23 23 23; /* #171717 */
-    --surface: 255 255 255; /* #FFFFFF */
-    --primary: 59 130 246; /* #3B82F6 */
-    --radius: 12px;
+    /* Light mode - "Happy & Fresh" */
+    --background: 250 250 252;
+    /* #FAFAFC - Very light cool grey/white */
+    --foreground: 51 65 85;
+    /* #334155 - Slate 700 - Softer than black */
+    --surface: 255 255 255;
+    /* #FFFFFF */
+    --primary: 99 102 241;
+    /* #6366F1 - Indigo 500 - Vibrant yet friendly */
+    --secondary: 236 72 153;
+    /* #EC4899 - Pink 500 */
+    --radius: 16px;
+    /* Rounder corners */
   }
 
   .dark {
-    /* Dark mode - "Deep Charcoal" */
-    --background: 18 18 18; /* #121212 */
-    --foreground: 237 237 237; /* #EDEDED */
-    --surface: 30 30 30; /* #1E1E1E */
-    --primary: 96 165 250; /* #60A5FA */
+    /* Dark mode - "Deep & Calm" */
+    --background: 15 23 42;
+    /* #0F172A - Slate 900 */
+    --foreground: 241 245 249;
+    /* #F1F5F9 - Slate 100 */
+    --surface: 30 41 59;
+    /* #1E293B - Slate 800 */
+    --primary: 129 140 248;
+    /* #818CF8 - Indigo 400 */
   }
 }
 
@@ -25,14 +36,35 @@
   * {
     @apply border-gray-200 dark:border-gray-800;
   }
+
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  ::selection {
+    background-color: rgb(var(--primary) / 0.2);
+  }
+
+  /* Smooth transitions for theme changes */
+  div,
+  button,
+  a {
+    @apply transition-colors duration-200;
   }
 }
 
 @layer utilities {
   .text-mono {
     font-family: 'JetBrains Mono', 'SF Mono', 'Roboto Mono', monospace;
+  }
+
+  /* Glassmorphism utilities */
+  .glass {
+    @apply bg-white/70 backdrop-blur-md border border-white/20;
+  }
+
+  .glass-dark {
+    @apply bg-slate-900/70 backdrop-blur-md border border-white/10;
   }
 }
