@@ -1,51 +1,53 @@
-import { NextResponse } from 'next/server'
 import { getPayload } from 'payload'
-import config from '@/payload.config'
+import config from '@payload-config'
+import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
   try {
     const payload = await getPayload({ config })
-    const { displayName, themeColor } = await request.json()
+    const { displayName, email, password } = await request.json()
 
-    if (!displayName) {
+    if (!displayName || !email || !password) {
       return NextResponse.json(
-        { error: 'displayName is required' },
+        { error: 'Name, email, and password are required' },
         { status: 400 }
       )
     }
 
-    // Generate a unique email for the user (since Payload auth requires email)
-    // We use a random suffix to ensure uniqueness
-    const randomSuffix = Math.random().toString(36).substring(2, 15)
-    const email = `user-${randomSuffix}@statelink.local`
-    const password = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+    // Check if user with email already exists (Payload create might throw, so we can try/catch wrapper or check first)
+    const existingUsers = await payload.find({
+      collection: 'users',
+      where: {
+        email: {
+          equals: email,
+        },
+      },
+      limit: 1,
+    })
 
-    // Use provided theme color or default blue
-    const finalThemeColor = themeColor || '#3B82F6'
+    if (existingUsers.docs.length > 0) {
+      return NextResponse.json(
+        { error: 'User with this email already exists' },
+        { status: 409 }
+      )
+    }
 
-    // Create the user with Payload's create method
+    // Create new user with provided credentials
     const user = await payload.create({
       collection: 'users',
       data: {
         email,
         password,
         displayName,
-        themeColor: finalThemeColor,
+        themeColor: '#3B82F6', // Default blue, changable in settings
       },
     })
 
-    return NextResponse.json({
-      success: true,
-      user: {
-        id: user.id,
-        displayName: user.displayName,
-        themeColor: user.themeColor,
-      },
-    })
+    return NextResponse.json({ user })
   } catch (error) {
     console.error('Error creating user:', error)
     return NextResponse.json(
-      { error: 'Failed to create user' },
+      { error: 'Failed to create user account' },
       { status: 500 }
     )
   }
