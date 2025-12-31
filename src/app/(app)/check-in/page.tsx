@@ -170,16 +170,12 @@ export default function CheckInPage() {
 
       {/* Header */}
       <div className="p-4 flex justify-between items-center">
-        {step === 2 ? (
-          <button
-            onClick={() => setStep(1)}
-            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-          >
-            <ArrowLeft className="w-6 h-6 text-gray-500" />
-          </button>
-        ) : (
-          <div className="w-10" />
-        )}
+        <button
+          onClick={() => step === 2 ? setStep(1) : router.push('/dashboard')}
+          className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        >
+          <ArrowLeft className="w-6 h-6 text-gray-500" />
+        </button>
 
         {step === 2 && vibe && (
           <div
