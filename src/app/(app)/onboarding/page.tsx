@@ -5,26 +5,29 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-import { Zap, ArrowLeft, Users, Plus, ArrowRight } from 'lucide-react'
+import { Zap, ArrowLeft, Users, Plus, ArrowRight, ArrowRightCircle } from 'lucide-react'
 
 function OnboardingContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
+  // View State: 'onboarding' (signup) or 'login'
+  const [view, setView] = useState<'onboarding' | 'login'>('onboarding')
+
+  // Signup State
   const [step, setStep] = useState(1)
-
-  // Step 1: Name
   const [displayName, setDisplayName] = useState('')
-
-  // Step 2: Credentials
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-
-  // Step 3: Group
   const [groupAction, setGroupAction] = useState<'create' | 'join' | null>(null)
   const [groupName, setGroupName] = useState('')
   const [inviteCode, setInviteCode] = useState('')
   const [autoInviteCode, setAutoInviteCode] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
+
+  // Login State
+  const [loginEmail, setLoginEmail] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -34,11 +37,44 @@ function OnboardingContent() {
     if (code) {
       setInviteCode(code)
       setAutoInviteCode(code)
-      // Logic to auto-select join will happen when they reach step 3
     }
   }, [searchParams])
 
-  const handleNext = () => {
+  // --- LOGIN HANDLER ---
+  const handleLogin = async () => {
+    if (!loginEmail.trim() || !loginPassword.trim()) {
+      setError('Please enter email and password')
+      return
+    }
+    setLoading(true)
+    setError('')
+
+    try {
+      const response = await fetch('/api/users/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed')
+      }
+
+      // Successful Login
+      // In a real app we might check if they have a group, but redirecting to dashboard is fine
+      router.push('/dashboard')
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Invalid credentials')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // --- SIGNUP HANDLERS ---
+  const handleNext = async () => {
     if (step === 1) {
       if (!displayName.trim()) {
         setError('Please enter your name')
@@ -58,14 +94,39 @@ function OnboardingContent() {
         setError('Password must be at least 6 characters')
         return
       }
+
+      setLoading(true)
       setError('')
 
-      // If we have an auto-invite code, go straight to join confirm
-      if (autoInviteCode) {
-        setGroupAction('join')
+      try {
+        const userResponse = await fetch('/api/users/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            displayName,
+            email,
+            password
+          }),
+        })
+        const userData = await userResponse.json()
+        if (!userResponse.ok) {
+          if (userData.error === 'User with this email already exists') {
+            throw new Error("This email is already taken. Please log in.")
+          } else {
+            throw new Error(userData.error || 'Failed to create user account')
+          }
+        }
+        setUserId(userData.user.id)
+        setError('')
+        if (autoInviteCode) {
+          setGroupAction('join')
+        }
+        setStep(3)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred')
+      } finally {
+        setLoading(false)
       }
-
-      setStep(3)
       return
     }
   }
@@ -75,42 +136,22 @@ function OnboardingContent() {
       setError('Please enter a group name')
       return
     }
-
+    if (!userId) {
+      setError("User account not found. Please restart.")
+      return
+    }
     setLoading(true)
     setError('')
-
     try {
-      // First, create the user account
-      const userResponse = await fetch('/api/users/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          displayName,
-          email,
-          password
-        }),
-      })
-
-      const userData = await userResponse.json()
-
-      if (!userResponse.ok) {
-        throw new Error(userData.error || 'Failed to create user account')
-      }
-
-      // Then create the group with the real user ID
       const response = await fetch('/api/groups/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: groupName, userId: userData.user.id }),
+        body: JSON.stringify({ name: groupName, userId: userId }),
       })
-
       const data = await response.json()
-
       if (!response.ok) {
         throw new Error(data.error || 'Failed to create group')
       }
-
-      // Show invite code to user
       alert(`Group created! Invite code: ${data.group.inviteCode}`)
       router.push('/dashboard')
     } catch (err) {
@@ -125,52 +166,22 @@ function OnboardingContent() {
       setError('Please enter an invite code')
       return
     }
-
+    if (!userId) {
+      setError("User account not found. Please restart.")
+      return
+    }
     setLoading(true)
     setError('')
-
     try {
-      // First, create the user account
-      // Note: In a real app we'd check if email exists and login, or creating new
-      const userResponse = await fetch('/api/users/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          displayName,
-          email,
-          password
-        }),
-      })
-
-      const userData = await userResponse.json()
-
-      let userId = ''
-
-      if (!userResponse.ok) {
-        if (userData.error === 'User with this email already exists') {
-          // For this demo, we assume they might want to login, but since we don't have login logic here
-          // We'll just show error. Ideally we'd log them in or ask to login.
-          throw new Error("User exists. Please log in (not implemented in this demo flow yet).")
-        } else {
-          throw new Error(userData.error || 'Failed to create user account')
-        }
-      } else {
-        userId = userData.user.id
-      }
-
-      // Then join the group with the real user ID
       const response = await fetch('/api/groups/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inviteCode, userId }),
+        body: JSON.stringify({ inviteCode, userId: userId }),
       })
-
       const data = await response.json()
-
       if (!response.ok) {
         throw new Error(data.error || 'Failed to join group')
       }
-
       router.push('/dashboard')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
@@ -188,76 +199,60 @@ function OnboardingContent() {
   }
 
   return (
-    <Card className="w-full max-w-md border-none shadow-2xl rounded-[2rem] bg-white dark:bg-gray-800 overflow-hidden relative">
-      <div className="p-8">
-        {/* Header / Nav */}
-        <div className="flex items-center justify-between mb-8 relative h-8">
-          {step > 1 && (
-            <button
-              onClick={goBack}
-              className="p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 transition-colors absolute left-0"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-          )}
+    <div className="w-full max-w-md">
+      <Card className="border-none shadow-2xl rounded-[2rem] bg-white dark:bg-gray-800 overflow-hidden relative min-h-[500px] flex flex-col">
+        <div className="p-8 flex-1 flex flex-col h-full">
 
-          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
-            <div className="bg-primary/10 p-1.5 rounded-lg">
-              <Zap className="w-4 h-4 text-primary" />
-            </div>
-            <span className="font-bold text-gray-900 dark:text-white tracking-tight">StateLink</span>
-          </div>
-        </div>
+          {/* Header / Nav */}
+          <div className="flex items-center justify-between mb-8 relative h-8">
+            {view === 'onboarding' && step > 1 && (
+              <button
+                onClick={goBack}
+                className="p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 transition-colors absolute left-0"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            )}
 
-        <div className="text-center space-y-2 mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {step === 1 ? 'Welcome!' : step === 2 ? 'Secure Account' : 'Find your Squad'}
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {step === 1 ? 'Let\'s get started with your name.' : step === 2 ? 'Create a login to save your stats.' : 'Create or join a group.'}
-          </p>
-        </div>
-
-        <div className="min-h-[200px]">
-          {step === 1 && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2 pl-1">
-                  Display Name
-                </label>
-                <Input
-                  placeholder="e.g. Alice"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  className="h-14 rounded-2xl bg-gray-50 dark:bg-gray-900 border-transparent focus:border-primary/20 focus:bg-white dark:focus:bg-gray-800 transition-all text-lg"
-                />
+            <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+              <div className="bg-primary/10 p-1.5 rounded-lg">
+                <Zap className="w-4 h-4 text-primary" />
               </div>
-              <Button onClick={handleNext} className="w-full h-14 text-lg rounded-2xl font-semibold shadow-lg shadow-primary/20">
-                Next Step <ArrowRight className="ml-2 w-5 h-5" />
-              </Button>
+              <span className="font-bold text-gray-900 dark:text-white tracking-tight">StateLink</span>
             </div>
-          )}
+          </div>
 
-          {step === 2 && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+          {/* --- LOGIN VIEW --- */}
+          {view === 'login' && (
+            <div className="space-y-6 flex-1 flex flex-col justify-center animate-in fade-in slide-in-from-left-4 duration-500">
+              <div className="text-center space-y-2 mb-4">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Welcome Back</h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Sign in to check on your group.
+                </p>
+              </div>
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2 pl-1">Email</label>
                   <Input
                     type="email"
                     placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
                     className="h-14 rounded-2xl bg-gray-50 dark:bg-gray-900 border-transparent focus:border-primary/20 focus:bg-white dark:focus:bg-gray-800 transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2 pl-1">Password</label>
+                  <div className="flex justify-between mb-2">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 pl-1">Password</label>
+                    <span className="text-xs text-primary cursor-pointer hover:underline">Forgot?</span>
+                  </div>
                   <Input
                     type="password"
-                    placeholder="Min 6 characters"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
                     className="h-14 rounded-2xl bg-gray-50 dark:bg-gray-900 border-transparent focus:border-primary/20 focus:bg-white dark:focus:bg-gray-800 transition-all"
                   />
                 </div>
@@ -265,105 +260,190 @@ function OnboardingContent() {
 
               {error && <p className="text-sm text-red-500 text-center bg-red-50 p-2 rounded-lg">{error}</p>}
 
-              <Button onClick={handleNext} className="w-full h-14 text-lg rounded-2xl font-semibold shadow-lg shadow-primary/20">
-                continue
+              <Button onClick={handleLogin} disabled={loading} className="w-full h-14 text-lg rounded-2xl font-semibold shadow-lg shadow-primary/20 mt-4">
+                {loading ? 'Signing In...' : 'Log In'}
               </Button>
             </div>
           )}
 
-          {step === 3 && !groupAction && (
-            <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-500">
-              {autoInviteCode ? (
-                <div className="text-center p-4 bg-primary/5 rounded-2xl mb-4">
-                  <p className="text-sm font-medium text-primary mb-2">Invite Code Found!</p>
-                  <p className="text-2xl font-mono font-bold">{autoInviteCode}</p>
-                </div>
-              ) : null}
-
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  onClick={() => setGroupAction('join')}
-                  className="flex flex-col items-center justify-center gap-3 p-4 rounded-2xl border-2 border-dashed border-gray-200 hover:border-primary hover:bg-primary/5 transition-all group h-40"
-                >
-                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                    <Users className="w-6 h-6 text-gray-500 group-hover:text-primary" />
-                  </div>
-                  <span className="font-semibold text-gray-700 group-hover:text-primary">Join Group</span>
-                </button>
-
-                <button
-                  onClick={() => setGroupAction('create')}
-                  className="flex flex-col items-center justify-center gap-3 p-4 rounded-2xl border-2 border-dashed border-gray-200 hover:border-primary hover:bg-primary/5 transition-all group h-40"
-                >
-                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                    <Plus className="w-6 h-6 text-gray-500 group-hover:text-primary" />
-                  </div>
-                  <span className="font-semibold text-gray-700 group-hover:text-primary">Create Group</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {step === 3 && groupAction === 'create' && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2 pl-1">
-                  Group Name
-                </label>
-                <Input
-                  placeholder="e.g. The Avengers"
-                  value={groupName}
-                  onChange={(e) => setGroupName(e.target.value)}
-                  className="h-14 rounded-2xl bg-gray-50 dark:bg-gray-900 border-transparent focus:border-primary/20 focus:bg-white dark:focus:bg-gray-800 transition-all text-lg"
-                />
-              </div>
-              {error && <p className="text-sm text-red-500 text-center bg-red-50 p-2 rounded-lg">{error}</p>}
-
-              <Button
-                onClick={handleCreateGroup}
-                disabled={loading}
-                className="w-full h-14 text-lg rounded-2xl font-semibold shadow-lg shadow-primary/20"
-              >
-                {loading ? 'Creating...' : 'Create Group'}
-              </Button>
-            </div>
-          )}
-
-          {step === 3 && groupAction === 'join' && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2 pl-1">
-                  Invite Code
-                </label>
-                <Input
-                  placeholder="XXXXXXXX"
-                  value={inviteCode}
-                  onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                  maxLength={8}
-                  className="h-14 rounded-2xl bg-gray-50 dark:bg-gray-900 border-transparent focus:border-primary/20 focus:bg-white dark:focus:bg-gray-800 transition-all text-center text-2xl font-mono tracking-widest uppercase"
-                />
-              </div>
-
-              {autoInviteCode && (
-                <p className="text-sm text-center text-green-600">
-                  Auto-filled from invitation link
+          {/* --- SIGNUP VIEW --- */}
+          {view === 'onboarding' && (
+            <>
+              <div className="text-center space-y-2 mb-8">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {step === 1 ? 'Welcome!' : step === 2 ? 'Secure Account' : 'Find your Squad'}
+                </h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {step === 1 ? 'Let\'s get started with your name.' : step === 2 ? 'Create a login to save your stats.' : 'Create or join a group.'}
                 </p>
-              )}
+              </div>
 
-              {error && <p className="text-sm text-red-500 text-center bg-red-50 p-2 rounded-lg">{error}</p>}
+              <div className="min-h-[200px]">
+                {step === 1 && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2 pl-1">
+                        Display Name
+                      </label>
+                      <Input
+                        placeholder="e.g. Alice"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        className="h-14 rounded-2xl bg-gray-50 dark:bg-gray-900 border-transparent focus:border-primary/20 focus:bg-white dark:focus:bg-gray-800 transition-all text-lg"
+                      />
+                    </div>
+                    <Button onClick={handleNext} className="w-full h-14 text-lg rounded-2xl font-semibold shadow-lg shadow-primary/20">
+                      Next Step <ArrowRight className="ml-2 w-5 h-5" />
+                    </Button>
+                  </div>
+                )}
 
-              <Button
-                onClick={handleJoinGroup}
-                disabled={loading}
-                className="w-full h-14 text-lg rounded-2xl font-semibold shadow-lg shadow-primary/20"
-              >
-                {loading ? 'Joining...' : 'Join Group'}
-              </Button>
-            </div>
+                {step === 2 && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2 pl-1">Email</label>
+                        <Input
+                          type="email"
+                          placeholder="you@example.com"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="h-14 rounded-2xl bg-gray-50 dark:bg-gray-900 border-transparent focus:border-primary/20 focus:bg-white dark:focus:bg-gray-800 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2 pl-1">Password</label>
+                        <Input
+                          type="password"
+                          placeholder="Min 6 characters"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="h-14 rounded-2xl bg-gray-50 dark:bg-gray-900 border-transparent focus:border-primary/20 focus:bg-white dark:focus:bg-gray-800 transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    {error && <p className="text-sm text-red-500 text-center bg-red-50 p-2 rounded-lg">{error}</p>}
+
+                    <Button onClick={handleNext} disabled={loading} className="w-full h-14 text-lg rounded-2xl font-semibold shadow-lg shadow-primary/20">
+                      {loading ? 'Creating Account...' : 'Continue'}
+                    </Button>
+                  </div>
+                )}
+
+                {step === 3 && !groupAction && (
+                  <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-500">
+                    {autoInviteCode ? (
+                      <div className="text-center p-4 bg-primary/5 rounded-2xl mb-4">
+                        <p className="text-sm font-medium text-primary mb-2">Invite Code Found!</p>
+                        <p className="text-2xl font-mono font-bold">{autoInviteCode}</p>
+                      </div>
+                    ) : null}
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <button
+                        onClick={() => setGroupAction('join')}
+                        className="flex flex-col items-center justify-center gap-3 p-4 rounded-2xl border-2 border-dashed border-gray-200 hover:border-primary hover:bg-primary/5 transition-all group h-40"
+                      >
+                        <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                          <Users className="w-6 h-6 text-gray-500 group-hover:text-primary" />
+                        </div>
+                        <span className="font-semibold text-gray-700 group-hover:text-primary">Join Group</span>
+                      </button>
+
+                      <button
+                        onClick={() => setGroupAction('create')}
+                        className="flex flex-col items-center justify-center gap-3 p-4 rounded-2xl border-2 border-dashed border-gray-200 hover:border-primary hover:bg-primary/5 transition-all group h-40"
+                      >
+                        <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                          <Plus className="w-6 h-6 text-gray-500 group-hover:text-primary" />
+                        </div>
+                        <span className="font-semibold text-gray-700 group-hover:text-primary">Create Group</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {step === 3 && groupAction === 'create' && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2 pl-1">
+                        Group Name
+                      </label>
+                      <Input
+                        placeholder="e.g. The Avengers"
+                        value={groupName}
+                        onChange={(e) => setGroupName(e.target.value)}
+                        className="h-14 rounded-2xl bg-gray-50 dark:bg-gray-900 border-transparent focus:border-primary/20 focus:bg-white dark:focus:bg-gray-800 transition-all text-lg"
+                      />
+                    </div>
+                    {error && <p className="text-sm text-red-500 text-center bg-red-50 p-2 rounded-lg">{error}</p>}
+
+                    <Button
+                      onClick={handleCreateGroup}
+                      disabled={loading}
+                      className="w-full h-14 text-lg rounded-2xl font-semibold shadow-lg shadow-primary/20"
+                    >
+                      {loading ? 'Creating Group...' : 'Create Group'}
+                    </Button>
+                  </div>
+                )}
+
+                {step === 3 && groupAction === 'join' && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2 pl-1">
+                        Invite Code
+                      </label>
+                      <Input
+                        placeholder="XXXXXXXX"
+                        value={inviteCode}
+                        onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                        maxLength={8}
+                        className="h-14 rounded-2xl bg-gray-50 dark:bg-gray-900 border-transparent focus:border-primary/20 focus:bg-white dark:focus:bg-gray-800 transition-all text-center text-2xl font-mono tracking-widest uppercase"
+                      />
+                    </div>
+
+                    {autoInviteCode && (
+                      <p className="text-sm text-center text-green-600">
+                        Auto-filled from invitation link
+                      </p>
+                    )}
+
+                    {error && <p className="text-sm text-red-500 text-center bg-red-50 p-2 rounded-lg">{error}</p>}
+
+                    <Button
+                      onClick={handleJoinGroup}
+                      disabled={loading}
+                      className="w-full h-14 text-lg rounded-2xl font-semibold shadow-lg shadow-primary/20"
+                    >
+                      {loading ? 'Joining Group...' : 'Join Group'}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </>
           )}
+
+        </div>
+      </Card>
+
+      {/* Footer / Login Link */}
+      {/* Footer / Login Link */}
+      <div className="mt-8 flex justify-center">
+        <div
+          onClick={() => { setView(view === 'onboarding' ? 'login' : 'onboarding'); setError('') }}
+          className="group flex items-center gap-2 bg-white/60 dark:bg-gray-800/60 backdrop-blur-md px-6 py-3 rounded-full shadow-sm hover:shadow-md hover:bg-white dark:hover:bg-gray-800 transition-all cursor-pointer border border-white/20 dark:border-gray-700/50"
+        >
+          <span className="text-sm text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors">
+            {view === 'onboarding' ? 'Already have an account?' : "Don't have an account?"}
+          </span>
+          <span className="text-sm font-bold text-primary">
+            {view === 'onboarding' ? 'Log in' : 'Sign up'}
+          </span>
         </div>
       </div>
-    </Card>
+    </div>
   )
 }
 
@@ -373,11 +453,6 @@ export default function OnboardingPage() {
       <Suspense fallback={<div className="text-center">Loading...</div>}>
         <OnboardingContent />
       </Suspense>
-
-      {/* Footer / Login Link */}
-      <div className="fixed bottom-8 text-center text-sm text-gray-400">
-        Already have an account? <span className="text-primary font-bold cursor-pointer hover:underline">Log in</span>
-      </div>
     </div>
   )
 }
