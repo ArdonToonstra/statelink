@@ -1,117 +1,211 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { getVibeColor } from '@/lib/utils'
-import { Settings, Activity, ArrowRight, Zap, User } from 'lucide-react'
+import { Card } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Users, Copy, Zap, BarChart3, Settings, Activity } from "lucide-react"
 import Link from 'next/link'
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 
 export default function DashboardPage() {
   const router = useRouter()
-  // Mock average vibe for now - in production this would fetch the last 7 days average
-  const averageVibe = 7
-  const vibeColor = getVibeColor(averageVibe)
+  const [loading, setLoading] = useState(true)
+  const [data, setData] = useState<{
+    groupPulse: string | null,
+    memberCount: number,
+    userLastVibe: any, // Checkin object
+    groupName: string
+  } | null>(null)
+
+  useEffect(() => {
+    const userId = localStorage.getItem('statelink_user_id')
+    if (!userId) {
+      router.push('/onboarding')
+      return
+    }
+
+    const fetchData = async () => {
+      try {
+        const res = await fetch(`/api/dashboard?userId=${userId}`)
+        if (!res.ok) throw new Error('Failed to fetch')
+        const json = await res.json()
+        // Check if user has no group (should handle in UI)
+        setData(json)
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [router])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="animate-pulse flex flex-col items-center">
+          <Zap className="w-8 h-8 text-gray-300 mb-4" />
+          <div className="h-4 w-32 bg-gray-200 rounded"></div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!data) return null; // Or error state
+
+  const pulseValue = data.groupPulse ? parseFloat(data.groupPulse) : 0
+  const hasVibe = !!data.groupPulse
+  const isSolo = data.memberCount <= 1
+
+  // Color logic for pulse
+  const getPulseColor = (val: number) => {
+    if (val >= 8) return "text-emerald-500"
+    if (val >= 5) return "text-blue-500"
+    return "text-orange-500"
+  }
+
+  // Empty State Logic
+  const showInviteCallout = isSolo && !hasVibe && !data.userLastVibe
+  const emptyVibeText = "Waiting for input..."
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-6 pb-28 flex flex-col relative overflow-hidden">
-
-      {/* Background decoration - Lighter and Happier */}
-      <div className="absolute top-[-20%] right-[-10%] w-[300px] h-[300px] bg-blue-400/20 rounded-full blur-3xl pointer-events-none mix-blend-multiply" />
-      <div className="absolute bottom-[-10%] left-[-10%] w-[300px] h-[300px] bg-pink-400/20 rounded-full blur-3xl pointer-events-none mix-blend-multiply" />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-100 via-gray-50 to-gray-50 dark:from-blue-900/20 dark:via-gray-900 dark:to-gray-900 font-sans pb-20">
 
       {/* Header */}
-      <div className="flex justify-between items-center mb-8 relative z-10">
-        <div className="flex items-center gap-2">
-          <div className="bg-gradient-to-br from-blue-500 to-purple-500 text-white p-2.5 rounded-xl shadow-lg shadow-blue-500/20">
-            <Zap className="w-5 h-5 fill-current" />
+      <div className="sticky top-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-10 p-4 border-b border-gray-100 dark:border-gray-800">
+        <div className="max-w-md mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="bg-primary/10 p-1.5 rounded-lg">
+              <Zap className="w-5 h-5 text-primary" />
+            </div>
+            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400">
+              {data.groupName}
+            </h1>
           </div>
-          <span className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">StateLink</span>
+          <Link href="/settings">
+            <Button variant="ghost" size="icon" className="rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+              <Settings className="w-5 h-5 text-gray-500" />
+            </Button>
+          </Link>
         </div>
-        <Link href="/settings">
-          <Button variant="ghost" size="icon" className="rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
-            <Settings className="w-6 h-6 text-gray-500" />
-          </Button>
-        </Link>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col justify-center space-y-6 max-w-md mx-auto w-full relative z-10">
+      <div className="max-w-md mx-auto p-4 space-y-6">
 
         {/* Vibe Card */}
-        <div className="relative group cursor-default">
-          {/* Glow effect */}
-          <div
-            className="absolute inset-0 rounded-[2.5rem] bg-gradient-to-br from-blue-400 to-purple-500 blur-2xl opacity-20 group-hover:opacity-30 transition-opacity duration-500"
-          />
+        <Card className="border-none shadow-xl shadow-blue-500/5 bg-white dark:bg-gray-800 rounded-[2rem] overflow-hidden relative min-h-[300px] flex flex-col items-center justify-center p-8">
+          {/* Background decorative blobs */}
+          <div className="absolute top-0 left-0 w-full h-full overflow-hidden opacity-30 pointer-events-none">
+            <div className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-100/50 via-transparent to-transparent animate-slow-spin" />
+          </div>
 
-          <Card className="relative overflow-hidden border-none shadow-xl shadow-gray-200/50 dark:shadow-none rounded-[2.5rem] bg-white dark:bg-gray-900 p-8 text-center flex flex-col items-center justify-center min-h-[300px]">
-            <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500" />
+          <div className="relative z-10 text-center space-y-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700/50 text-xs font-medium text-gray-500 mb-4">
+              <Users className="w-3 h-3" />
+              {data.memberCount} Members Active
+            </div>
 
-            <h2 className="text-gray-400 font-bold tracking-widest uppercase text-xs mb-6">
-              Group Pulse · Last 7 Days
-            </h2>
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-400">Group Pulse</h2>
 
-            <div className="relative mb-6">
+            <div className="relative">
               {/* Pulse Rings */}
-              <div
-                className="absolute inset-0 rounded-full animate-ping opacity-10"
-                style={{ backgroundColor: vibeColor }}
-              />
-              <div
-                className="relative w-32 h-32 rounded-full flex items-center justify-center text-7xl font-bold tracking-tighter shadow-sm"
-                style={{
-                  background: `linear-gradient(135deg, ${vibeColor}15, ${vibeColor}05)`,
-                  color: vibeColor,
-                }}
-              >
-                {averageVibe}
+              {hasVibe && (
+                <>
+                  <div className={`absolute inset-0 rounded-full animate-ping opacity-20 ${getPulseColor(pulseValue).replace('text-', 'bg-')}`}></div>
+                  <div className="absolute inset-0 rounded-full animate-pulse opacity-10 bg-primary blur-3xl"></div>
+                </>
+              )}
+
+              <div className={`text-8xl font-black tracking-tighter ${hasVibe ? getPulseColor(pulseValue) : 'text-gray-300'}`}>
+                {hasVibe ? pulseValue : '--'}
               </div>
             </div>
 
-            <div className="space-y-1">
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                Feeling Good!
-              </p>
-              <p className="text-sm text-gray-500 px-8">
-                The group vibe is trending up this week.
-              </p>
-            </div>
-          </Card>
-        </div>
+            <p className="text-gray-500 font-medium">
+              {hasVibe
+                ? (pulseValue > 7 ? "Vibes are immaculate" : pulseValue > 4 ? "Keepin' it steady" : "Needs some love")
+                : emptyVibeText}
+            </p>
+          </div>
 
-        {/* Action Buttons */}
-        <div className="space-y-3 pt-2">
-          <Button
-            className="w-full h-16 text-lg rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-gray-200/50 dark:shadow-none font-semibold"
-            onClick={() => router.push('/check-in')}
-          >
-            Vibe Check
-            <ArrowRight className="ml-2 w-5 h-5" />
-          </Button>
+          {/* Bounce removed */}
+        </Card>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Link href="/stats" className="block">
-              <Button
-                variant="ghost"
-                className="w-full h-14 text-sm rounded-2xl bg-white/60 hover:bg-white border-0 shadow-sm text-gray-600 font-medium"
-              >
-                <Activity className="mr-2 w-4 h-4" />
-                Group Stats
-              </Button>
-            </Link>
-            <Link href="/stats/me" className="block">
-              <Button
-                variant="ghost"
-                className="w-full h-14 text-sm rounded-2xl bg-white/60 hover:bg-white border-0 shadow-sm text-gray-600 font-medium"
-              >
-                <User className="mr-2 w-4 h-4" />
-                My Stats
+        {/* Empty State Call to Action */}
+        {/* Empty State Call to Action */}
+        {showInviteCallout && (
+          <div className="my-2">
+            <Link href="/settings?tab=group">
+              <Button variant="outline" className="w-full h-20 rounded-2xl border-dashed border-2 border-primary/20 hover:border-primary hover:bg-primary/5 text-primary gap-3 text-lg font-semibold bg-white dark:bg-gray-800">
+                <Users className="w-6 h-6" />
+                Invite People to Start
               </Button>
             </Link>
           </div>
+        )}
+
+        {/* Core Action */}
+        <Link href="/check-in" className="block transform transition-transform active:scale-95">
+          <Button className="w-full h-20 text-xl rounded-3xl font-bold shadow-2xl shadow-primary/30 bg-gradient-to-br from-primary to-violet-600 hover:from-primary/90 hover:to-violet-700 border-t border-white/20">
+            <Zap className="mr-3 w-8 h-8 fill-white" />
+            Check In Now
+          </Button>
+        </Link>
+
+        {/* Secondary Actions Grid */}
+        <div className="grid grid-cols-2 gap-4">
+          <Link href="/stats">
+            <Button variant="outline" className="w-full h-24 rounded-2xl flex flex-col gap-2 border-0 bg-white dark:bg-gray-800 shadow-lg shadow-gray-200/50 hover:bg-gray-50 dark:hover:bg-gray-700">
+              <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600">
+                <Activity className="w-5 h-5" />
+              </div>
+              <span className="font-semibold text-gray-700 dark:text-gray-200">Group Stats</span>
+            </Button>
+          </Link>
+
+          <Link href="/stats/me">
+            <Button variant="outline" className="w-full h-24 rounded-2xl flex flex-col gap-2 border-0 bg-white dark:bg-gray-800 shadow-lg shadow-gray-200/50 hover:bg-gray-50 dark:hover:bg-gray-700">
+              <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600">
+                <UserIcon className="w-5 h-5" />
+              </div>
+              <span className="font-semibold text-gray-700 dark:text-gray-200">My Stats</span>
+            </Button>
+          </Link>
         </div>
+
+        {/* Latest Update (if User has data) */}
+        {data.userLastVibe && (
+          <div className="text-center">
+            <p className="text-xs text-gray-400 font-medium uppercase tracking-widest mb-2">Your Last Check-in</p>
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-full shadow-sm">
+              <span className="font-bold text-gray-900 dark:text-white">{new Date(data.userLastVibe.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              <span className="w-1 h-1 bg-gray-300 rounded-full" />
+              <span className="text-primary font-bold">Vibe: {data.userLastVibe.vibeScore}</span>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
+  )
+}
+
+function UserIcon(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
   )
 }

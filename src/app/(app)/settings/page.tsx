@@ -1,76 +1,133 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-import { ArrowLeft, Download, Trash2, User, Users, Copy, Check, LogOut, Loader2 } from 'lucide-react'
-
-// Mock Data
-const MOCK_USER = {
-    id: '1',
-    displayName: 'Alice',
-    email: 'alice@example.com',
-    isGroupOwner: true
-}
-
-const MOCK_GROUP = {
-    id: 'grp_1',
-    name: 'The Avengers',
-    inviteCode: 'XE92-K821',
-    members: [
-        { id: '1', name: 'Alice', role: 'owner' },
-        { id: '2', name: 'Bob', role: 'member' },
-        { id: '3', name: 'Charlie', role: 'member' },
-    ]
-}
+import { ArrowLeft, Download, Trash2, User, Users, Copy, Check, LogOut, Loader2, LogOut as LeaveIcon } from 'lucide-react'
 
 export default function SettingsPage() {
     const router = useRouter()
-    const [activeTab, setActiveTab] = useState<'profile' | 'group'>('profile')
+    const searchParams = useSearchParams()
 
-    // User State
-    const [displayName, setDisplayName] = useState(MOCK_USER.displayName)
-    const [email] = useState(MOCK_USER.email)
+    // Default tab logic
+    const initialTab = searchParams.get('tab') === 'group' ? 'group' : 'profile'
+    const [activeTab, setActiveTab] = useState<'profile' | 'group'>(initialTab)
+    const [loading, setLoading] = useState(true)
 
-    // Group State
-    const [groupName, setGroupName] = useState(MOCK_GROUP.name)
-    const [members, setMembers] = useState(MOCK_GROUP.members)
+    // Data State
+    const [user, setUser] = useState<any>(null)
+    const [group, setGroup] = useState<any>(null)
+
+    // Form State
+    const [displayName, setDisplayName] = useState('')
+    const [groupName, setGroupName] = useState('')
+
     const [copied, setCopied] = useState(false)
-
-    // UI Save State
     const [saveStatus, setSaveStatus] = useState<{ field: string, status: 'saving' | 'saved' | 'idle' }>({ field: '', status: 'idle' })
 
+    useEffect(() => {
+        const userId = localStorage.getItem('statelink_user_id')
+        if (!userId) {
+            router.push('/onboarding')
+            return
+        }
+
+        const fetchSettings = async () => {
+            try {
+                const res = await fetch(`/api/settings?userId=${userId}`)
+                if (res.ok) {
+                    const data = await res.json()
+                    setUser(data.user)
+                    setGroup(data.group)
+
+                    setDisplayName(data.user.displayName || '')
+                    if (data.group) {
+                        setGroupName(data.group.name || '')
+                    }
+                }
+            } catch (e) {
+                console.error(e)
+            } finally {
+                setLoading(false)
+            }
+        }
+        fetchSettings()
+    }, [router])
+
+
     const handleCopyCode = () => {
-        navigator.clipboard.writeText(MOCK_GROUP.inviteCode)
+        if (!group) return
+        navigator.clipboard.writeText(group.inviteCode)
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
     }
 
-    const handleRemoveMember = (memberId: string) => {
+    const handleRemoveMember = async (memberId: string) => {
+        if (!user.isGroupOwner) return; // Guard
+
         if (confirm('Are you sure you want to remove this member?')) {
-            setMembers(members.filter(m => m.id !== memberId))
+            // Optimistic update
+            const updatedMembers = group.members.filter((m: any) => m.id !== memberId)
+            setGroup({ ...group, members: updatedMembers })
+
+            // API
+            const userId = localStorage.getItem('statelink_user_id')
+            await fetch('/api/settings', {
+                method: 'PUT',
+                body: JSON.stringify({ userId, type: 'group', data: { removeMemberId: memberId } })
+            })
+        }
+    }
+
+    const handleLeaveGroup = async () => {
+        if (confirm('Are you sure you want to leave this group?')) {
+            const userId = localStorage.getItem('statelink_user_id')
+            try {
+                await fetch('/api/settings', {
+                    method: 'PUT',
+                    body: JSON.stringify({ userId, type: 'leave_group' })
+                })
+                // Refresh to show "Join" state
+                setGroup(null)
+                setActiveTab('profile')
+            } catch (e) {
+                console.error(e)
+                alert("Failed to leave group")
+            }
         }
     }
 
     // Auto-Save Handler
-    const handleAutoSave = (field: string, value: string) => {
-        // Prevent saving unchanged value logic could go here, but for now we just show movement
+    const handleAutoSave = async (field: string, value: string) => {
+        // Only owner can edit group name
+        if (field === 'groupName' && !user.isGroupOwner) return
+
         setSaveStatus({ field, status: 'saving' })
 
-        // Simulate API call
-        setTimeout(() => {
+        const userId = localStorage.getItem('statelink_user_id')
+        const type = field === 'displayName' ? 'profile' : 'group'
+        const payload = field === 'displayName' ? { displayName: value } : { name: value }
+
+        try {
+            await fetch('/api/settings', {
+                method: 'PUT',
+                body: JSON.stringify({ userId, type, data: payload })
+            })
+
             setSaveStatus({ field, status: 'saved' })
-            // Clear 'saved' message after 2 seconds
             setTimeout(() => {
                 setSaveStatus(prev => prev.field === field ? { ...prev, status: 'idle' } : prev)
             }, 2000)
-        }, 800)
+        } catch (e) {
+            console.error(e)
+            setSaveStatus(prev => prev.field === field ? { ...prev, status: 'idle' } : prev)
+        }
     }
 
     const handleDownloadData = () => {
-        const data = JSON.stringify({ user: MOCK_USER, history: [] }, null, 2)
+        const data = JSON.stringify({ user, group }, null, 2)
         const blob = new Blob([data], { type: 'application/json' })
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
@@ -80,17 +137,18 @@ export default function SettingsPage() {
     }
 
     const handleLogout = () => {
+        localStorage.removeItem('statelink_user_id')
         router.push('/onboarding')
     }
 
     const handleDeleteAccount = () => {
         if (confirm('DANGER: This will permanently delete your account and all data. This cannot be undone. Continue?')) {
             alert('Account deleted.')
+            localStorage.removeItem('statelink_user_id')
             router.push('/onboarding')
         }
     }
 
-    // Helper to render Status Indicator
     const StatusIndicator = ({ fieldName }: { fieldName: string }) => {
         if (saveStatus.field !== fieldName || saveStatus.status === 'idle') return null
 
@@ -110,6 +168,8 @@ export default function SettingsPage() {
         }
         return null
     }
+
+    if (loading) return <div className="p-10 text-center">Loading settings...</div>
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
@@ -137,7 +197,8 @@ export default function SettingsPage() {
                         <User className="w-4 h-4" />
                         My Profile
                     </button>
-                    {MOCK_USER.isGroupOwner && (
+                    {/* Show Group tab for everyone in a group, not just owners */}
+                    {group && (
                         <button
                             onClick={() => setActiveTab('group')}
                             className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-lg transition-all ${activeTab === 'group'
@@ -146,13 +207,13 @@ export default function SettingsPage() {
                                 }`}
                         >
                             <Users className="w-4 h-4" />
-                            Group Admin
+                            Group
                         </button>
                     )}
                 </div>
 
                 {/* Profile Content */}
-                {activeTab === 'profile' && (
+                {activeTab === 'profile' && user && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                         <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
                             <h2 className="font-semibold text-gray-900 dark:text-white mb-4">Personal Info</h2>
@@ -177,12 +238,24 @@ export default function SettingsPage() {
                                     Email Address
                                 </label>
                                 <Input
-                                    value={email}
+                                    value={user.email}
                                     disabled
                                     className="h-12 bg-gray-50 dark:bg-gray-900 border-transparent opacity-60"
                                 />
                                 <p className="text-xs text-gray-400 mt-1">Contact support to change email.</p>
                             </div>
+
+                            {!group && (
+                                <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-xl text-orange-600 dark:text-orange-400 text-sm">
+                                    You are not in a group yet. <br />
+                                    <span
+                                        className="font-bold underline cursor-pointer"
+                                        onClick={() => router.push('/onboarding')} // Redirect to onboarding to create/join? Or handled here?
+                                    >
+                                        Go to Onboarding to Join/Create
+                                    </span>
+                                </div>
+                            )}
                         </Card>
 
                         <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
@@ -215,7 +288,7 @@ export default function SettingsPage() {
                 )}
 
                 {/* Group Content */}
-                {activeTab === 'group' && (
+                {activeTab === 'group' && group && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                         <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
                             <h2 className="font-semibold text-gray-900 dark:text-white">Group Details</h2>
@@ -225,13 +298,14 @@ export default function SettingsPage() {
                                     <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
                                         Group Name
                                     </label>
-                                    <StatusIndicator fieldName="groupName" />
+                                    {user.isGroupOwner && <StatusIndicator fieldName="groupName" />}
                                 </div>
                                 <Input
                                     value={groupName}
                                     onChange={(e) => setGroupName(e.target.value)}
                                     onBlur={() => handleAutoSave('groupName', groupName)}
-                                    className="h-12 bg-gray-50 dark:bg-gray-900 border-transparent focus:bg-white transition-colors"
+                                    disabled={!user.isGroupOwner}
+                                    className={`h-12 bg-gray-50 dark:bg-gray-900 border-transparent focus:bg-white transition-colors ${!user.isGroupOwner ? 'opacity-70' : ''}`}
                                 />
                             </div>
 
@@ -241,7 +315,7 @@ export default function SettingsPage() {
                                 </label>
                                 <div className="flex gap-2">
                                     <div className="flex-1 h-12 bg-gray-50 dark:bg-gray-900 rounded-lg flex items-center px-4 font-mono font-bold tracking-widest text-gray-700 dark:text-gray-300">
-                                        {MOCK_GROUP.inviteCode}
+                                        {group.inviteCode}
                                     </div>
                                     <Button onClick={handleCopyCode} variant={copied ? "default" : "outline"} className="h-12 w-12 rounded-lg p-0 flex items-center justify-center">
                                         {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
@@ -252,11 +326,11 @@ export default function SettingsPage() {
 
                         <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
                             <div className="flex justify-between items-center mb-2">
-                                <h2 className="font-semibold text-gray-900 dark:text-white">Members ({members.length})</h2>
+                                <h2 className="font-semibold text-gray-900 dark:text-white">Members ({group.members.length})</h2>
                             </div>
 
                             <div className="space-y-1">
-                                {members.map((member) => (
+                                {group.members.map((member: any) => (
                                     <div key={member.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900 dark:to-purple-900 flex items-center justify-center text-sm font-bold text-primary">
@@ -268,7 +342,8 @@ export default function SettingsPage() {
                                             </div>
                                         </div>
 
-                                        {member.role !== 'owner' && (
+                                        {/* Remove member logic: only if OWNER and removing OTHERS */}
+                                        {member.role !== 'owner' && user.isGroupOwner && (
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
@@ -282,6 +357,24 @@ export default function SettingsPage() {
                                 ))}
                             </div>
                         </Card>
+
+                        <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
+                            <h2 className="font-semibold text-gray-900 dark:text-white">Group Actions</h2>
+                            <Button variant="ghost" onClick={handleLeaveGroup} className="w-full h-12 rounded-xl justify-start px-4 gap-3 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 text-red-500">
+                                <LeaveIcon className="w-5 h-5" />
+                                <div className="text-left">
+                                    <div className="font-semibold">Leave Group</div>
+                                    <div className="text-xs opacity-70 font-normal">Leave this group and join another</div>
+                                </div>
+                            </Button>
+                        </Card>
+                    </div>
+                )}
+
+                {activeTab === 'group' && !group && (
+                    <div className="text-center py-10">
+                        <p className="text-gray-500 mb-4">You are not part of a group.</p>
+                        <Button onClick={() => router.push('/onboarding')}>Join or Create a Group</Button>
                     </div>
                 )}
 

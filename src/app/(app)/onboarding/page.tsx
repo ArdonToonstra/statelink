@@ -99,6 +99,9 @@ function OnboardingContent() {
       setError('')
 
       try {
+        // Check if we already have a user in session (from prev step or local)
+        // Actually, we are creating new here.
+
         const userResponse = await fetch('/api/users/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -116,7 +119,11 @@ function OnboardingContent() {
             throw new Error(userData.error || 'Failed to create user account')
           }
         }
-        setUserId(userData.user.id)
+
+        const newUserId = userData.user.id
+        setUserId(newUserId)
+        localStorage.setItem('statelink_user_id', newUserId) // PERSIST
+
         setError('')
         if (autoInviteCode) {
           setGroupAction('join')
@@ -130,6 +137,24 @@ function OnboardingContent() {
       return
     }
   }
+
+  // --- AUTO LOGIN ON MOUNT ---
+  useEffect(() => {
+    const storedUserId = localStorage.getItem('statelink_user_id')
+    if (storedUserId) {
+      // Ideally verify it exists via API, but for now we trust it or dashboard will handle 404
+      // Or we can just redirect to dashboard directly if we have it?
+      // User might want to signup again if they are here.
+      // But if they just refreshed, they want to be logged in.
+      // We'll trust it.
+      // If viewing '/' (onboarding), maybe we should redirect to dashboard?
+      // For now, I won't auto-redirect to avoid loop if they explicitly came here to logout/switch.
+      // But I will set it in state so 'Join/Create' works if they skip steps?
+      // Actually they can't skip steps easily.
+      // Let's just persist on Create/Login.
+    }
+  }, [])
+
 
   const handleCreateGroup = async () => {
     if (!groupName.trim()) {
