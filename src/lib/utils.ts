@@ -5,34 +5,72 @@
  */
 export function generateInviteCode(length: number = 8): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  const charsLength = chars.length
   let result = ''
   
   // Use crypto.getRandomValues for cryptographically secure randomness
   if (typeof window !== 'undefined' && window.crypto) {
-    // Browser environment
-    const array = new Uint8Array(length)
+    // Browser environment - use rejection sampling to avoid modulo bias
+    const maxRange = 256 - (256 % charsLength)
+    const array = new Uint8Array(length * 2) // Generate extra bytes for rejection sampling
     window.crypto.getRandomValues(array)
-    for (let i = 0; i < length; i++) {
-      result += chars.charAt(array[i] % chars.length)
+    
+    let arrayIndex = 0
+    while (result.length < length && arrayIndex < array.length) {
+      const byte = array[arrayIndex++]
+      // Only use bytes in the unbiased range
+      if (byte < maxRange) {
+        result += chars.charAt(byte % charsLength)
+      }
+    }
+    
+    // If we need more bytes (unlikely), generate more
+    while (result.length < length) {
+      const extraArray = new Uint8Array(length - result.length)
+      window.crypto.getRandomValues(extraArray)
+      for (let i = 0; i < extraArray.length && result.length < length; i++) {
+        const byte = extraArray[i]
+        if (byte < maxRange) {
+          result += chars.charAt(byte % charsLength)
+        }
+      }
     }
   } else if (typeof require !== 'undefined') {
-    // Node.js environment
+    // Node.js environment - use rejection sampling to avoid modulo bias
     try {
       const crypto = require('crypto')
-      const bytes = crypto.randomBytes(length)
-      for (let i = 0; i < length; i++) {
-        result += chars.charAt(bytes[i] % chars.length)
+      const maxRange = 256 - (256 % charsLength)
+      const bytes = crypto.randomBytes(length * 2)
+      
+      let byteIndex = 0
+      while (result.length < length && byteIndex < bytes.length) {
+        const byte = bytes[byteIndex++]
+        // Only use bytes in the unbiased range
+        if (byte < maxRange) {
+          result += chars.charAt(byte % charsLength)
+        }
+      }
+      
+      // If we need more bytes (unlikely), generate more
+      while (result.length < length) {
+        const extraBytes = crypto.randomBytes(length - result.length)
+        for (let i = 0; i < extraBytes.length && result.length < length; i++) {
+          const byte = extraBytes[i]
+          if (byte < maxRange) {
+            result += chars.charAt(byte % charsLength)
+          }
+        }
       }
     } catch (e) {
       // Fallback to Math.random if crypto is not available
       for (let i = 0; i < length; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length))
+        result += chars.charAt(Math.floor(Math.random() * charsLength))
       }
     }
   } else {
     // Fallback for environments without crypto
     for (let i = 0; i < length; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length))
+      result += chars.charAt(Math.floor(Math.random() * charsLength))
     }
   }
   
