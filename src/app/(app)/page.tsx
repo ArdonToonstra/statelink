@@ -12,7 +12,7 @@ export default function Home() {
   }, [router])
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div suppressHydrationWarning className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="flex flex-col items-center gap-4">
         <div className="bg-primary/10 p-4 rounded-2xl animate-pulse">
           <Zap className="w-12 h-12 text-primary" />

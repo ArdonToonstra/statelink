@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-import { Zap, ArrowLeft, Users, Plus, ArrowRight, ArrowRightCircle } from 'lucide-react'
+import { Zap, ArrowLeft, Users, Plus, ArrowRight } from 'lucide-react'
 
 function OnboardingContent() {
   const router = useRouter()
@@ -90,8 +90,21 @@ function OnboardingContent() {
         setError('Please enter email and password')
         return
       }
-      if (password.length < 6) {
-        setError('Password must be at least 6 characters')
+      // Password validation: minimum 8 characters, at least one uppercase, one lowercase, and one number
+      if (password.length < 8) {
+        setError('Password must be at least 8 characters')
+        return
+      }
+      if (!/[A-Z]/.test(password)) {
+        setError('Password must contain at least one uppercase letter')
+        return
+      }
+      if (!/[a-z]/.test(password)) {
+        setError('Password must contain at least one lowercase letter')
+        return
+      }
+      if (!/[0-9]/.test(password)) {
+        setError('Password must contain at least one number')
         return
       }
 
@@ -423,7 +436,7 @@ function OnboardingContent() {
                       <Input
                         placeholder="XXXXXXXX"
                         value={inviteCode}
-                        onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                        onChange={(e) => setInviteCode(e.target.value.toUpperCase().slice(0, 8))}
                         maxLength={8}
                         className="h-14 rounded-2xl bg-gray-50 dark:bg-gray-900 border-transparent focus:border-primary/20 focus:bg-white dark:focus:bg-gray-800 transition-all text-center text-2xl font-mono tracking-widest uppercase"
                       />

@@ -28,12 +28,14 @@ export async function POST(request: Request) {
       )
     }
 
-    // Generate unique invite code
+    // Generate unique invite code with retry limit
     let inviteCode = generateInviteCode(8)
     let isUnique = false
+    let retryCount = 0
+    const maxRetries = 10
     
-    // Ensure uniqueness
-    while (!isUnique) {
+    // Ensure uniqueness with retry limit to prevent infinite loops
+    while (!isUnique && retryCount < maxRetries) {
       const existing = await payload.find({
         collection: 'groups',
         where: {
@@ -47,7 +49,15 @@ export async function POST(request: Request) {
         isUnique = true
       } else {
         inviteCode = generateInviteCode(8)
+        retryCount++
       }
+    }
+    
+    if (!isUnique) {
+      return NextResponse.json(
+        { error: 'Failed to generate unique invite code. Please try again.' },
+        { status: 500 }
+      )
     }
 
     // Create the group

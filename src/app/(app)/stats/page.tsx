@@ -2,7 +2,7 @@
 
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, UserIcon } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from "react"
 

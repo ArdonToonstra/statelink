@@ -1,14 +1,41 @@
 /**
- * Generate a random alphanumeric invite code
+ * Generate a cryptographically secure random alphanumeric invite code
  * @param length Length of the code (default: 8)
  * @returns Random alphanumeric string
  */
 export function generateInviteCode(length: number = 8): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
   let result = ''
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  
+  // Use crypto.getRandomValues for cryptographically secure randomness
+  if (typeof window !== 'undefined' && window.crypto) {
+    // Browser environment
+    const array = new Uint8Array(length)
+    window.crypto.getRandomValues(array)
+    for (let i = 0; i < length; i++) {
+      result += chars.charAt(array[i] % chars.length)
+    }
+  } else if (typeof require !== 'undefined') {
+    // Node.js environment
+    try {
+      const crypto = require('crypto')
+      const bytes = crypto.randomBytes(length)
+      for (let i = 0; i < length; i++) {
+        result += chars.charAt(bytes[i] % chars.length)
+      }
+    } catch (e) {
+      // Fallback to Math.random if crypto is not available
+      for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length))
+      }
+    }
+  } else {
+    // Fallback for environments without crypto
+    for (let i = 0; i < length; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
   }
+  
   return result
 }
 

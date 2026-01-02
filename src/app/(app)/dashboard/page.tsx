@@ -2,7 +2,7 @@
 
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Users, Copy, Zap, BarChart3, Settings, Activity } from "lucide-react"
+import { Users, Zap, Settings, Activity } from "lucide-react"
 import Link from 'next/link'
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
