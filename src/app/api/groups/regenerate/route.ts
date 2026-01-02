@@ -42,7 +42,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Group not found' }, { status: 404 })
         }
 
-        const createdById = Number(createdBy)
+        const createdById = Number(group.createdBy)
         const requestUserId = Number(userId)
 
         // We can also verify against the user making the request if we fetched the user,

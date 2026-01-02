@@ -70,7 +70,6 @@ export async function POST(request: Request) {
         createdBy: userId,
         frequency: 2,
         intervalMode: 'random',
-        inviteCodeCreated: new Date().toISOString(),
       },
     })
 
