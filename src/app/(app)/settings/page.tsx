@@ -261,6 +261,7 @@ function SettingsContent() {
                 </span>
             )
         }
+
         if (saveStatus.status === 'saved') {
             return (
                 <span className="text-xs text-green-600 flex items-center gap-1 animate-in fade-in">
@@ -276,14 +277,23 @@ function SettingsContent() {
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
             {/* Header */}
-            <div className="sticky top-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-10 p-4 border-b border-gray-100 dark:border-gray-800">
-                <div className="max-w-2xl mx-auto flex items-center gap-4">
+            <div className="sticky top-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-10 p-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                <div className="flex items-center gap-4">
                     <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full">
                         <ArrowLeft className="w-5 h-5 text-gray-500" />
                     </Button>
                     <h1 className="text-xl font-bold text-gray-900 dark:text-white">Settings</h1>
                 </div>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => router.push('/install')}
+                    className="text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                >
+                    Install App
+                </Button>
             </div>
+
 
             <div className="max-w-2xl mx-auto p-4 space-y-6">
 

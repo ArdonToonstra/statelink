@@ -16,4 +16,11 @@ const nextConfig = {
   },
 }
 
-export default withPayload(nextConfig)
+
+const withPWA = (await import("@ducanh2912/next-pwa")).default({
+  dest: "public",
+
+});
+
+export default withPayload(withPWA(nextConfig))
+

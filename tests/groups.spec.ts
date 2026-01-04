@@ -19,7 +19,7 @@ test.describe('Groups', () => {
     });
 
     test('Create group and invite someone', async ({ page }) => {
-        await page.getByText('Create Group', { exact: false }).click();
+        await page.locator('button:has-text("Create Group")').first().click();
 
         const groupNameInput = page.getByPlaceholder('e.g. The Avengers');
         await expect(groupNameInput).toBeVisible();
@@ -42,7 +42,7 @@ test.describe('Groups', () => {
 
     test('Regenerate invite code', async ({ page }) => {
         // Create Group first
-        await page.getByText('Create Group', { exact: false }).click();
+        await page.locator('button:has-text("Create Group")').first().click();
         await expect(page.getByPlaceholder('e.g. The Avengers')).toBeVisible();
         await page.getByPlaceholder('e.g. The Avengers').fill('Regen Group');
         await page.getByRole('button', { name: 'Create Group' }).click();

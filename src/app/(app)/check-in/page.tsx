@@ -194,12 +194,22 @@ export default function CheckInPage() {
 
       {/* Header */}
       <div className="p-4 flex justify-between items-center">
+
         <button
           onClick={() => step === 2 ? setStep(1) : router.push('/dashboard')}
           className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
         >
           <ArrowLeft className="w-6 h-6 text-gray-500" />
         </button>
+
+        <button
+          onClick={() => router.push('/install')}
+          className="text-xs font-medium text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 underline decoration-dotted underline-offset-4"
+        >
+          Install App
+        </button>
+
+
 
         {step === 2 && vibe && (
           <div

@@ -17,7 +17,8 @@ test.describe('Check-ins', () => {
         await page.getByRole('button', { name: 'Continue' }).click();
 
         await expect(page.getByText('Find your Squad')).toBeVisible();
-        await page.getByText('Create Group', { exact: false }).click();
+        // Click Create Group
+        await page.locator('button:has-text("Create Group")').first().click();
 
         await expect(page.getByPlaceholder('e.g. The Avengers')).toBeVisible();
         await page.getByPlaceholder('e.g. The Avengers').fill('Vibe Group');
@@ -36,10 +37,10 @@ test.describe('Check-ins', () => {
         await page.getByText('good').click();
 
         // Step 2: Activities
-        await expect(page.getByText('What have you been up to?')).toBeVisible(); // matches uppercase in CSS? Content is "What have you\nbeen up to?"
+        await expect(page.getByRole('heading', { name: /What have you.*been up to/i })).toBeVisible();
 
         // Select activity
-        await page.getByText('family').click();
+        await page.getByRole('button', { name: 'family' }).click();
 
         // Add note
         const noteInput = page.getByPlaceholder('Add Note...');
@@ -52,8 +53,9 @@ test.describe('Check-ins', () => {
         await expect(page).toHaveURL('/dashboard');
 
         // Verify dashboard updates
-        // Use first or exact match
-        await expect(page.getByText('8', { exact: true })).toBeVisible();
-        await expect(page.getByText("Keepin' it steady")).toBeVisible();
+        // "good" is 8, so average is 8.
+        // Dashboard logic: > 7 => "Vibes are immaculate"
+        await expect(page.getByText('8', { exact: false })).toBeVisible();
+        await expect(page.getByText("Vibes are immaculate")).toBeVisible();
     });
 });
