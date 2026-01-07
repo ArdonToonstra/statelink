@@ -19,7 +19,7 @@ const nextConfig = {
 
 const withPWA = (await import("@ducanh2912/next-pwa")).default({
   dest: "public",
-
+  disable: process.env.NODE_ENV === "development",
 });
 
 export default withPayload(withPWA(nextConfig))
