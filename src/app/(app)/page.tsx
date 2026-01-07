@@ -28,12 +28,12 @@ export default function Home() {
 
         {/* Hero Text */}
         <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold bg-clip-text text-transparent bg-gradient-to-br from-gray-900 via-gray-700 to-gray-900 dark:from-white dark:via-gray-200 dark:to-gray-400 mb-6 tracking-tight animate-in fade-in slide-in-from-bottom-5 duration-700 fill-mode-backwards delay-100">
-          Sync your squad's <br className="hidden md:block" /> dynamic state.
+          Sync your squad&apos;s <br className="hidden md:block" /> dynamic state.
         </h1>
 
         {/* Description */}
         <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 max-w-2xl mb-10 leading-relaxed animate-in fade-in slide-in-from-bottom-6 duration-700 fill-mode-backwards delay-200">
-          StateLink helps you track your group's wellbeing in real-time.
+          StateLink helps you track your group&apos;s wellbeing in real-time.
           Only an email and a display name is required. No unnecessary tracking, ever.
         </p>
 

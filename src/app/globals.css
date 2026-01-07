@@ -1,8 +1,9 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
+@variant dark (&:where(.dark, .dark *));
 
 @layer base {
+
   /* 
    * CSS Custom Properties using Tailwind v3+ format
    * Values are space-separated RGB components (r g b)
@@ -10,20 +11,30 @@
    */
   :root {
     /* Light mode - "Happy & Fresh" */
-    --background: 250 250 252; /* rgb(250 250 252) = #FAFAFC - Very light cool grey/white */
-    --foreground: 51 65 85; /* rgb(51 65 85) = #334155 - Slate 700 - Softer than black */
-    --surface: 255 255 255; /* rgb(255 255 255) = #FFFFFF */
-    --primary: 99 102 241; /* rgb(99 102 241) = #6366F1 - Indigo 500 - Vibrant yet friendly */
-    --secondary: 236 72 153; /* rgb(236 72 153) = #EC4899 - Pink 500 */
-    --radius: 16px; /* Rounder corners */
+    --background: 250 250 252;
+    /* rgb(250 250 252) = #FAFAFC - Very light cool grey/white */
+    --foreground: 51 65 85;
+    /* rgb(51 65 85) = #334155 - Slate 700 - Softer than black */
+    --surface: 255 255 255;
+    /* rgb(255 255 255) = #FFFFFF */
+    --primary: 99 102 241;
+    /* rgb(99 102 241) = #6366F1 - Indigo 500 - Vibrant yet friendly */
+    --secondary: 236 72 153;
+    /* rgb(236 72 153) = #EC4899 - Pink 500 */
+    --radius: 16px;
+    /* Rounder corners */
   }
 
   .dark {
     /* Dark mode - "Deep & Calm" */
-    --background: 15 23 42; /* rgb(15 23 42) = #0F172A - Slate 900 */
-    --foreground: 241 245 249; /* rgb(241 245 249) = #F1F5F9 - Slate 100 */
-    --surface: 30 41 59; /* rgb(30 41 59) = #1E293B - Slate 800 */
-    --primary: 129 140 248; /* rgb(129 140 248) = #818CF8 - Indigo 400 */
+    --background: 15 23 42;
+    /* rgb(15 23 42) = #0F172A - Slate 900 */
+    --foreground: 241 245 249;
+    /* rgb(241 245 249) = #F1F5F9 - Slate 100 */
+    --surface: 30 41 59;
+    /* rgb(30 41 59) = #1E293B - Slate 800 */
+    --primary: 129 140 248;
+    /* rgb(129 140 248) = #818CF8 - Indigo 400 */
   }
 }
 
