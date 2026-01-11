@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-import { ArrowLeft, Download, Trash2, User, Users, Copy, Check, LogOut, Loader2, LogOut as LeaveIcon, RefreshCw, AlertCircle, Plus, Hash } from 'lucide-react'
+import { ArrowLeft, Download, Trash2, User, Users, Copy, Check, LogOut, Loader2, LogOut as LeaveIcon, RefreshCw, AlertCircle, Plus, Hash, Smartphone } from 'lucide-react'
 
 // Sub-component for regeneration button state
 function RegenerateButton({ group, onUpdate }: { group: any, onUpdate: (g: any) => void }) {
@@ -284,14 +284,7 @@ function SettingsContent() {
                     </Button>
                     <h1 className="text-xl font-bold text-gray-900 dark:text-white">Settings</h1>
                 </div>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => router.push('/install')}
-                    className="text-gray-500 hover:text-gray-900 dark:hover:text-white"
-                >
-                    Install App
-                </Button>
+                <div />
             </div>
 
 
@@ -359,6 +352,16 @@ function SettingsContent() {
                         </Card>
 
                         <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
+                            <h2 className="font-semibold text-gray-900 dark:text-white">Application</h2>
+                            <Button variant="outline" onClick={() => router.push('/install')} className="w-full h-12 rounded-xl justify-start px-4 gap-3 bg-gray-50 border-0 hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200">
+                                <Smartphone className="w-5 h-5 text-gray-500" />
+                                <div className="text-left">
+                                    <div className="font-semibold">Install App</div>
+                                </div>
+                            </Button>
+                        </Card>
+
+                        <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
                             <h2 className="font-semibold text-gray-900 dark:text-white">Account Actions</h2>
 
                             <Button variant="outline" onClick={handleLogout} className="w-full h-12 rounded-xl justify-start px-4 gap-3 bg-gray-50 border-0 hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-700 text-gray-700">
@@ -411,9 +414,9 @@ function SettingsContent() {
                                 <Button
                                     onClick={() => router.push('/onboarding?step=3&action=join')}
                                     variant="outline"
-                                    className="h-32 flex flex-col gap-3 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/10 hover:text-purple-600 transition-all shadow-none"
+                                    className="h-32 flex flex-col gap-3 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/10 hover:text-emerald-600 transition-all shadow-none"
                                 >
-                                    <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600">
+                                    <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600">
                                         <Hash className="w-6 h-6" />
                                     </div>
                                     <span className="font-semibold">Join with Invite Code</span>

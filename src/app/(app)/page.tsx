@@ -15,11 +15,19 @@ export default function Home() {
           </div>
           <span className="font-bold text-xl text-gray-900 dark:text-white tracking-tight">StateLink</span>
         </div>
-        <Link href="/onboarding?view=login">
-          <Button variant="ghost" className="font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors">
-            Log in
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/install">
+            <Button variant="ghost" className="font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors">
+              Install App
+            </Button>
+          </Link>
+          <div className="text-gray-300 dark:text-gray-600">|</div>
+          <Link href="/onboarding?view=login">
+            <Button variant="ghost" className="font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors">
+              Log in
+            </Button>
+          </Link>
+        </div>
       </header>
 
       {/* Main Content */}
@@ -45,8 +53,6 @@ export default function Home() {
             </Button>
           </Link>
         </div>
-
-
 
       </main>
 

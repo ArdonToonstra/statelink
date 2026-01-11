@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-import { Zap, ArrowLeft, Users, Plus, ArrowRight } from 'lucide-react'
+import { Zap, ArrowLeft, Users, Plus, ArrowRight, Download, Trash2, ArrowRightLeft } from 'lucide-react'
 
 function OnboardingContent() {
   const router = useRouter()
@@ -31,6 +31,7 @@ function OnboardingContent() {
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showMigrationModal, setShowMigrationModal] = useState(false)
 
   useEffect(() => {
     const code = searchParams.get('invite') || searchParams.get('code')
@@ -225,6 +226,59 @@ function OnboardingContent() {
     }
   }
 
+
+
+  const handleMigrationChoice = async (action: 'merge' | 'delete') => {
+    setLoading(true)
+    setError('')
+
+    // If delete + download, we download first
+    if (action === 'delete') {
+      // Trigger download (simple fetch of own data)
+      try {
+        // We can re-use the GET /api/check-ins?scope=me logic if we want, 
+        // but for now let's assume we proceed with delete.
+        // Ideally we fetch data & trigger download here.
+        const res = await fetch('/api/check-ins?scope=me', { credentials: 'include' })
+        if (res.ok) {
+          const json = await res.json()
+          const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' })
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = 'my-statelink-data.json'
+          a.click()
+        }
+      } catch (e) {
+        console.error("Failed to download data", e)
+        // Proceed anyway? Or warn?
+      }
+    }
+
+    try {
+      const response = await fetch('/api/groups/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ inviteCode, migrationAction: action }),
+      })
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to join group')
+      }
+
+      router.push('/dashboard')
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
+      setShowMigrationModal(false)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+
   const handleJoinGroup = async () => {
     if (!inviteCode.trim()) {
       setError('Please enter an invite code')
@@ -240,6 +294,13 @@ function OnboardingContent() {
         body: JSON.stringify({ inviteCode }),
       })
       const data = await response.json()
+
+      if (response.status === 409 && data.confirmationRequired) {
+        setShowMigrationModal(true)
+        setLoading(false)
+        return
+      }
+
       if (!response.ok) {
         throw new Error(data.error || 'Failed to join group')
       }
@@ -247,7 +308,13 @@ function OnboardingContent() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
-      setLoading(false)
+      // Only stop loading if we didn't show modal
+      if (!showMigrationModal) {
+        // Check state in next render cycle or use ref, but here simplistic check might fail
+        // Actually setLoading(false) is fine because modal will show up
+        // Wait, if 409, we did set loading false manually above.
+        setLoading(false)
+      }
     }
   }
 
@@ -484,6 +551,55 @@ function OnboardingContent() {
                 )}
               </div>
             </>
+          )}
+
+          {/* MIGRATION MODAL OVERLAY */}
+          {showMigrationModal && (
+            <div className="absolute inset-0 z-50 bg-white dark:bg-gray-800 flex flex-col items-center justify-center p-6 animate-in fade-in duration-300">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 text-center">Existing Data Found</h2>
+              <p className="text-gray-500 text-center mb-8">
+                You have checks-ins that were made while not in a group. What would you like to do?
+              </p>
+
+              <div className="w-full space-y-4">
+                <Button
+                  onClick={() => handleMigrationChoice('merge')}
+                  className="w-full h-16 rounded-2xl flex items-center justify-between px-6 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 dark:text-blue-300 border-2 border-blue-200 dark:border-blue-800"
+                  variant="ghost"
+                  disabled={loading}
+                >
+                  <span className="flex items-center gap-3 font-semibold">
+                    <ArrowRightLeft className="w-5 h-5" />
+                    Take over data
+                  </span>
+                </Button>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-gray-200 dark:border-gray-700" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white dark:bg-gray-800 px-2 text-gray-400">Or</span>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={() => handleMigrationChoice('delete')}
+                  className="w-full h-16 rounded-2xl flex items-center justify-between px-6 bg-gray-50 hover:bg-gray-100 text-gray-600 dark:bg-gray-700/50 dark:hover:bg-gray-700 dark:text-gray-300 border-2 border-dashed border-gray-200 dark:border-gray-700"
+                  variant="ghost"
+                  disabled={loading}
+                >
+                  <span className="flex items-center gap-3 font-semibold">
+                    <Download className="w-5 h-5" />
+                    Download & Delete
+                  </span>
+                </Button>
+
+                <Button variant="ghost" onClick={() => setShowMigrationModal(false)} className="w-full text-gray-400">
+                  Cancel
+                </Button>
+              </div>
+            </div>
           )}
 
         </div>

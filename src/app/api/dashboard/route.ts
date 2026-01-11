@@ -6,7 +6,7 @@ import { getAuthenticatedUser } from '@/lib/auth'
 export async function GET(request: Request) {
     // Get authenticated user from JWT token
     const authenticatedUser = await getAuthenticatedUser()
-    
+
     if (!authenticatedUser) {
         return NextResponse.json(
             { error: 'Unauthorized - Please log in' },
@@ -24,28 +24,45 @@ export async function GET(request: Request) {
             id: userId,
         })
 
-        if (!user || !user.groupID) {
-            return NextResponse.json({
-                groupPulse: null,
-                memberCount: 0,
-                userLastVibe: null,
-                groupName: 'No Group'
+        let groupId = null
+        let groupName = 'No Group'
+        let memberCount = 0
+        let groupPulse = null
+
+        if (user && user.groupID) {
+            groupId = typeof user.groupID === 'object' ? user.groupID.id : user.groupID
+            const group = await payload.findByID({ collection: 'groups', id: groupId as unknown as number })
+            groupName = group?.name || 'My Group'
+
+            // Get Member Count
+            const members = await payload.find({
+                collection: 'users',
+                where: {
+                    groupID: { equals: groupId }
+                },
+                limit: 0
             })
+            memberCount = members.totalDocs
+
+            // Calculate Group Pulse (Avg of latest 24h)
+            const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
+
+            const recentCheckins = await payload.find({
+                collection: 'checkins',
+                where: {
+                    groupID: { equals: groupId },
+                    createdAt: { greater_than: yesterday.toISOString() }
+                },
+                limit: 100
+            })
+
+            if (recentCheckins.docs.length > 0) {
+                const sum = recentCheckins.docs.reduce((acc, curr) => acc + curr.vibeScore, 0)
+                groupPulse = (sum / recentCheckins.docs.length).toFixed(1)
+            }
         }
 
-        const groupId = typeof user.groupID === 'object' ? user.groupID.id : user.groupID
-
-        // 2. Get Member Count
-        const members = await payload.find({
-            collection: 'users',
-            where: {
-                groupID: { equals: groupId }
-            },
-            limit: 0
-        })
-        const memberCount = members.totalDocs
-
-        // 3. Get User's Last Vibe
+        // 3. Get User's Last Vibe (Always fetch this)
         const userCheckins = await payload.find({
             collection: 'checkins',
             where: {
@@ -56,31 +73,11 @@ export async function GET(request: Request) {
         })
         const userLastVibe = userCheckins.docs[0] || null
 
-        // 4. Calculate Group Pulse (Avg of latest 24h)
-        const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
-
-        const recentCheckins = await payload.find({
-            collection: 'checkins',
-            where: {
-                groupID: { equals: groupId },
-                createdAt: { greater_than: yesterday.toISOString() }
-            },
-            limit: 100
-        })
-
-        let avgVibe = null
-        if (recentCheckins.docs.length > 0) {
-            const sum = recentCheckins.docs.reduce((acc, curr) => acc + curr.vibeScore, 0)
-            avgVibe = (sum / recentCheckins.docs.length).toFixed(1)
-        }
-
-        const group = await payload.findByID({ collection: 'groups', id: groupId as unknown as number })
-
         return NextResponse.json({
-            groupPulse: avgVibe,
+            groupPulse,
             memberCount,
             userLastVibe,
-            groupName: group?.name || 'My Group'
+            groupName
         })
 
     } catch (error) {

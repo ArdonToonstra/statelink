@@ -6,7 +6,7 @@ import { getAuthenticatedUser } from '@/lib/auth'
 export async function GET(request: Request) {
     // Get authenticated user from JWT token
     const authenticatedUser = await getAuthenticatedUser()
-    
+
     if (!authenticatedUser) {
         return NextResponse.json(
             { error: 'Unauthorized - Please log in' },
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     // Get authenticated user from JWT token
     const authenticatedUser = await getAuthenticatedUser()
-    
+
     if (!authenticatedUser) {
         return NextResponse.json(
             { error: 'Unauthorized - Please log in' },
@@ -77,8 +77,8 @@ export async function POST(request: Request) {
             id: userId,
         })
 
-        if (!user || !user.groupID) {
-            return NextResponse.json({ error: 'User not found or not in a group' }, { status: 404 })
+        if (!user) {
+            return NextResponse.json({ error: 'User not found' }, { status: 404 })
         }
 
         // Format tags for Payload
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
             collection: 'checkins',
             data: {
                 user: Number(userId),
-                groupID: (typeof user.groupID === 'object' ? user.groupID.id : user.groupID) as any,
+                groupID: (user.groupID && typeof user.groupID === 'object' ? user.groupID.id : user.groupID) as any || null,
                 vibeScore,
                 tags: formattedTags,
                 customNote,

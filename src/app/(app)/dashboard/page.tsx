@@ -148,8 +148,9 @@ export default function DashboardPage() {
         )}
 
         {/* Core Action */}
+        {/* Core Action */}
         <Link href="/check-in" className="block transform transition-transform active:scale-95">
-          <Button className="w-full h-20 text-xl rounded-3xl font-bold shadow-2xl shadow-primary/30 bg-gradient-to-br from-primary to-violet-600 hover:from-primary/90 hover:to-violet-700 border-t border-white/20">
+          <Button className="w-full h-20 text-xl rounded-3xl font-bold shadow-2xl shadow-primary/50 bg-gradient-to-br from-primary to-emerald-600 hover:from-primary/90 hover:to-emerald-700 border-t border-white/20">
             <Zap className="mr-3 w-8 h-8 fill-white" />
             Check In Now
           </Button>
@@ -168,7 +169,7 @@ export default function DashboardPage() {
 
           <Link href="/stats/me">
             <Button variant="outline" className="w-full h-24 rounded-2xl flex flex-col gap-2 border-0 bg-white dark:bg-gray-800 shadow-lg shadow-gray-200/50 hover:bg-gray-50 dark:hover:bg-gray-700">
-              <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600">
                 <UserIcon className="w-5 h-5" />
               </div>
               <span className="font-semibold text-gray-700 dark:text-gray-200">My Stats</span>

@@ -33,12 +33,15 @@ import {
   Palette,
   Plane,
   PartyPopper,
-  X
+  X,
+  Pill,
+  Thermometer,
+  GlassWater
 } from 'lucide-react'
 import { format } from 'date-fns'
 
 const VIBE_OPTIONS = [
-  { value: 10, label: 'rad', color: '#10B981', icon: Laugh },
+  { value: 10, label: 'wonderful', color: '#10B981', icon: Laugh },
   { value: 8, label: 'good', color: '#84CC16', icon: Smile },
   { value: 6, label: 'meh', color: '#3B82F6', icon: Meh },
   { value: 4, label: 'bad', color: '#F59E0B', icon: Frown },
@@ -67,6 +70,9 @@ const ALL_ACTIVITIES = [
   { id: 'art', label: 'art', icon: Palette },
   { id: 'travel', label: 'travel', icon: Plane },
   { id: 'party', label: 'party', icon: PartyPopper },
+  { id: 'hangover', label: 'hangover', icon: GlassWater },
+  { id: 'drugs', label: 'drugs', icon: Pill },
+  { id: 'sick', label: 'being sick', icon: Thermometer },
 ]
 
 const DEFAULT_ACTIVITY_IDS = [
@@ -202,12 +208,7 @@ export default function CheckInPage() {
           <ArrowLeft className="w-6 h-6 text-gray-500" />
         </button>
 
-        <button
-          onClick={() => router.push('/install')}
-          className="text-xs font-medium text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 underline decoration-dotted underline-offset-4"
-        >
-          Install App
-        </button>
+        <div />
 
 
 

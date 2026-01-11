@@ -50,7 +50,7 @@ export const CheckIns: CollectionConfig = {
       name: 'groupID',
       type: 'relationship',
       relationTo: 'groups',
-      required: true,
+      required: false,
       admin: {
         description: 'Group this check-in belongs to',
       },

@@ -6,7 +6,7 @@ import { getAuthenticatedUser } from '@/lib/auth'
 export async function POST(request: Request) {
   // Get authenticated user from JWT token
   const authenticatedUser = await getAuthenticatedUser()
-  
+
   if (!authenticatedUser) {
     return NextResponse.json(
       { error: 'Unauthorized - Please log in' },
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   const userId = authenticatedUser.id
 
   try {
-    const { inviteCode } = await request.json()
+    const { inviteCode, migrationAction } = await request.json()
 
     if (!inviteCode) {
       return NextResponse.json(
@@ -64,6 +64,49 @@ export async function POST(request: Request) {
         { error: 'Invite code is old/invalid. Please ask the group owner to regenerate it.' },
         { status: 410 }
       )
+    }
+
+    // --- MIGRATION CHECK ---
+    // Check if user has any check-ins not in a group
+    const soloCheckins = await payload.find({
+      collection: 'checkins',
+      where: {
+        user: { equals: userId },
+        groupID: { exists: false }
+      },
+      limit: 1 // Just need to know if one exists
+    })
+
+    if (soloCheckins.totalDocs > 0) {
+      if (!migrationAction) {
+        return NextResponse.json({
+          error: 'Existing data found',
+          confirmationRequired: true
+        }, { status: 409 })
+      }
+
+      if (migrationAction === 'merge') {
+        // Update all solo checkins to new groupID
+        await payload.update({
+          collection: 'checkins',
+          where: {
+            user: { equals: userId },
+            groupID: { exists: false }
+          },
+          data: {
+            groupID: group.id
+          }
+        })
+      } else if (migrationAction === 'delete') {
+        // Delete all solo checkins
+        await payload.delete({
+          collection: 'checkins',
+          where: {
+            user: { equals: userId },
+            groupID: { exists: false }
+          }
+        })
+      }
     }
 
     // Update user's groupID

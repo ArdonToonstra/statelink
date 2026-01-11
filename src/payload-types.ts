@@ -206,7 +206,7 @@ export interface Checkin {
   /**
    * Group this check-in belongs to
    */
-  groupID: number | Group;
+  groupID?: (number | null) | Group;
   /**
    * Vibe score from 1-10
    */
