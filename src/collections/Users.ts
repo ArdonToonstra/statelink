@@ -29,20 +29,24 @@ export const Users: CollectionConfig = {
     {
       name: 'verificationCode',
       type: 'text',
-      hidden: true,
       admin: {
+        hidden: true,
         disabled: true,
       },
     },
     {
       name: 'verificationCodeExpiresAt',
       type: 'date',
-      hidden: true,
+      admin: {
+        hidden: true,
+      },
     },
     {
       name: 'lastVerificationEmailSentAt',
       type: 'date',
-      hidden: true,
+      admin: {
+        hidden: true,
+      },
     },
     {
       name: 'isVerified',

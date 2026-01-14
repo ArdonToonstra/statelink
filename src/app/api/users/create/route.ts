@@ -44,6 +44,9 @@ export async function POST(request: Request) {
       ? new Date(Date.now() + 30 * 60 * 1000) // 30 mins
       : null
 
+    console.log('[CREATE-USER] Verification enabled:', isVerificationEnabled)
+    console.log('[CREATE-USER] Generated code:', verificationCode)
+
     // Create new user with provided credentials
     const user = await payload.create({
       collection: 'users',
@@ -57,6 +60,9 @@ export async function POST(request: Request) {
         isVerified: !isVerificationEnabled, // Auto-verify if verification is disabled
       },
     })
+
+    console.log('[CREATE-USER] User created with ID:', user.id)
+    console.log('[CREATE-USER] User verificationCode field:', (user as any).verificationCode)
 
     // Log the user in automatically after creation
     const loginResult = await payload.login({

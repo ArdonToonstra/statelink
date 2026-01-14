@@ -13,21 +13,38 @@ export async function GET() {
 
     try {
         const payload = await getPayload({ config })
-        const { user } = await payload.auth({ headers: await headers() })
+        const headersList = await headers()
+        const { user } = await payload.auth({ headers: headersList })
 
         if (!user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+            console.log('[TEST-GET-CODE] No authenticated user found')
+            console.log('[TEST-GET-CODE] Headers:', Object.fromEntries(headersList.entries()))
+            return NextResponse.json({ error: 'Unauthorized', debug: 'No user in session' }, { status: 401 })
         }
 
-        const castedUser = user as any
+        // Fetch full user data including hidden fields
+        const fullUser = await payload.findByID({
+            collection: 'users',
+            id: user.id,
+        })
+
+        console.log('[TEST-GET-CODE] User authenticated:', user.id, 'Code:', fullUser.verificationCode, 'Is verified:', fullUser.isVerified)
+
+        if (!fullUser.verificationCode) {
+            return NextResponse.json({ 
+                error: 'No verification code', 
+                debug: 'User has no verification code set',
+                isVerified: fullUser.isVerified 
+            }, { status: 404 })
+        }
 
         return NextResponse.json({
-            verificationCode: castedUser.verificationCode,
-            expiresAt: castedUser.verificationCodeExpiresAt,
+            verificationCode: fullUser.verificationCode,
+            expiresAt: fullUser.verificationCodeExpiresAt,
         })
     } catch (error) {
-        console.error('Error getting verification code:', error)
-        return NextResponse.json({ error: 'Failed to get code' }, { status: 500 })
+        console.error('[TEST-GET-CODE] Error getting verification code:', error)
+        return NextResponse.json({ error: 'Failed to get code', details: String(error) }, { status: 500 })
     }
 }
 

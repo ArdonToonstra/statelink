@@ -1,9 +1,18 @@
 import Mailjet from 'node-mailjet'
 
-const mailjet = Mailjet.apiConnect(
-    process.env.MAILJET_API_KEY || '',
-    process.env.MAILJET_SECRET_KEY || ''
-)
+// Check if valid API keys exist
+const hasValidKeys = process.env.MAILJET_API_KEY && 
+                    process.env.MAILJET_SECRET_KEY &&
+                    process.env.MAILJET_API_KEY.length > 10 &&
+                    process.env.MAILJET_SECRET_KEY.length > 10
+
+// Only initialize Mailjet if we have valid keys
+const mailjet = hasValidKeys 
+    ? Mailjet.apiConnect(
+        process.env.MAILJET_API_KEY!,
+        process.env.MAILJET_SECRET_KEY!
+    )
+    : null
 
 type SendVerificationEmailProps = {
     to: string
@@ -11,6 +20,17 @@ type SendVerificationEmailProps = {
 }
 
 export async function sendVerificationEmail({ to, code }: SendVerificationEmailProps) {
+    // Skip sending in dev/test mode if API keys are not properly configured
+    if (process.env.NODE_ENV !== 'production' && !hasValidKeys) {
+        console.log('[EMAIL] Dev mode - Skipping email send to:', to, 'Code:', code)
+        return { success: true, devMode: true }
+    }
+
+    if (!mailjet) {
+        throw new Error('Email service not configured - missing API keys')
+    }
+
+    console.log('[EMAIL] Sending verification email to:', to)
     try {
         const request = mailjet.post('send', { version: 'v3.1' }).request({
             Messages: [

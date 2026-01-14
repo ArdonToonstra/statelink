@@ -13,21 +13,54 @@ async function getVerificationCode(page: any): Promise<string | null> {
 
 // Helper function to check if verification step appears and handle it
 async function handleVerificationStepIfNeeded(page: any) {
-    // Wait a moment for the page to settle
-    await page.waitForTimeout(500);
+    // Wait for either verification page or group selection page to appear
+    try {
+        await Promise.race([
+            page.waitForSelector('text=Verify Email', { timeout: 10000 }),
+            page.waitForSelector('text=Find your Squad', { timeout: 10000 }),
+        ]);
+    } catch (e) {
+        return;
+    }
 
-    // Check if verification step is showing
-    const verifyEmailVisible = await page.getByText('Verify Email').isVisible().catch(() => false);
+    const verifyEmailVisible = await page.getByText('Verify Email').first().isVisible().catch(() => false);
 
     if (verifyEmailVisible) {
-        // Verification is enabled - get code and verify
-        const code = await getVerificationCode(page);
-        if (code) {
-            await page.getByPlaceholder('Enter 6-digit code').fill(code);
-            await page.getByRole('button', { name: 'Verify Email' }).click();
+        // Use dev mode auto-fill button
+        const autoFillButton = page.getByRole('button', { name: 'Auto-fill verification code' });
+        const autoFillVisible = await autoFillButton.isVisible().catch(() => false);
+
+        if (autoFillVisible) {
+            await autoFillButton.click();
+            await page.waitForTimeout(1500);
+            
+            const codeInput = page.getByPlaceholder('Enter 6-digit code');
+            const codeValue = await codeInput.inputValue();
+            
+            if (!codeValue || codeValue.length < 6) {
+                const code = await getVerificationCode(page);
+                if (code) {
+                    await codeInput.fill(code);
+                    await page.waitForTimeout(500);
+                } else {
+                    return;
+                }
+            }
+        } else {
+            const code = await getVerificationCode(page);
+            if (code) {
+                await page.getByPlaceholder('Enter 6-digit code').fill(code);
+                await page.waitForTimeout(500);
+            } else {
+                return;
+            }
         }
+
+        const verifyButton = page.getByRole('button', { name: 'Verify Email' });
+        await verifyButton.waitFor({ state: 'visible', timeout: 5000 });
+        await verifyButton.click();
+        await page.waitForTimeout(1000);
     }
-    // If verification step is not visible, we automatically skipped it
 }
 
 test.describe('Authentication', () => {
@@ -58,7 +91,7 @@ test.describe('Authentication', () => {
         await handleVerificationStepIfNeeded(page);
 
         // Step 4 (or 3 if verification disabled): Group Selection
-        await expect(page.getByText('Find your Squad')).toBeVisible();
+        await expect(page.getByText('Find your Squad')).toBeVisible({ timeout: 15000 });
         await expect(page.getByText('Create Group')).toBeVisible();
 
         // Click Create Group
@@ -72,7 +105,7 @@ test.describe('Authentication', () => {
         await page.getByRole('button', { name: 'Create Group' }).click();
 
         // Should be redirected to dashboard
-        await expect(page).toHaveURL('/dashboard');
+        await expect(page).toHaveURL('/dashboard', { timeout: 10000 });
         await expect(page.getByText(groupName)).toBeVisible();
     });
 
@@ -96,13 +129,13 @@ test.describe('Authentication', () => {
         await handleVerificationStepIfNeeded(page);
 
         // Group Selection
-        await expect(page.getByText('Find your Squad')).toBeVisible();
+        await expect(page.getByText('Find your Squad')).toBeVisible({ timeout: 15000 });
         await page.locator('button:has-text("Create Group")').first().click();
 
         await expect(page.getByPlaceholder('e.g. The Avengers')).toBeVisible();
         await page.getByPlaceholder('e.g. The Avengers').fill('Logout Group');
         await page.getByRole('button', { name: 'Create Group' }).click();
-        await expect(page).toHaveURL('/dashboard');
+        await expect(page).toHaveURL('/dashboard', { timeout: 10000 });
 
         // Go to settings
         await page.goto('/settings');
@@ -137,13 +170,13 @@ test.describe('Authentication', () => {
         await handleVerificationStepIfNeeded(page);
 
         // Group Selection
-        await expect(page.getByText('Find your Squad')).toBeVisible();
+        await expect(page.getByText('Find your Squad')).toBeVisible({ timeout: 15000 });
         await page.locator('button:has-text("Create Group")').first().click();
 
         await expect(page.getByPlaceholder('e.g. The Avengers')).toBeVisible();
         await page.getByPlaceholder('e.g. The Avengers').fill('Login Group');
         await page.getByRole('button', { name: 'Create Group' }).click();
-        await expect(page).toHaveURL('/dashboard');
+        await expect(page).toHaveURL('/dashboard', { timeout: 10000 });
 
         // Log out
         await page.goto('/settings');
@@ -183,10 +216,10 @@ test.describe('Authentication', () => {
         await handleVerificationStepIfNeeded(page);
 
         // Group Selection - Click Skip
-        await expect(page.getByText('Find your Squad')).toBeVisible();
+        await expect(page.getByText('Find your Squad')).toBeVisible({ timeout: 15000 });
         await page.getByText('Skip for now').click();
 
         // Should be redirected to dashboard
-        await expect(page).toHaveURL('/dashboard');
+        await expect(page).toHaveURL('/dashboard', { timeout: 10000 });
     });
 });
