@@ -16,16 +16,12 @@ export default function Home() {
           <span className="font-bold text-xl text-gray-900 dark:text-white tracking-tight">StateLink</span>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/install">
-            <Button variant="ghost" className="font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors">
-              Install App
-            </Button>
+          <Link href="/install" className="font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors px-4 py-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
+            Install App
           </Link>
           <div className="text-gray-300 dark:text-gray-600">|</div>
-          <Link href="/onboarding?view=login">
-            <Button variant="ghost" className="font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors">
-              Log in
-            </Button>
+          <Link href="/onboarding?view=login" className="font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors px-4 py-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
+            Log in
           </Link>
         </div>
       </header>

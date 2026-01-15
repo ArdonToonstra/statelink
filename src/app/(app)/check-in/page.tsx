@@ -347,13 +347,13 @@ export default function CheckInPage() {
         )}
       </div>
 
-      {/* Bottom Save Button - Sticky */}
+      {/* Bottom Save Button - Fixed */}
       {step === 2 && (
-        <div className="p-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm sticky bottom-0 border-t border-gray-100 dark:border-gray-800 animate-in slide-in-from-bottom duration-300">
+        <div className="p-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm fixed bottom-0 left-0 right-0 border-t border-gray-100 dark:border-gray-800 animate-in slide-in-from-bottom duration-300 z-40">
           <Button
             onClick={handleSave}
             disabled={saving}
-            className="w-full h-14 text-lg bg-green-500 hover:bg-green-600 text-white rounded-2xl shadow-lg shadow-green-500/20"
+            className="w-full max-w-md mx-auto h-14 text-lg bg-green-500 hover:bg-green-600 text-white rounded-2xl shadow-lg shadow-green-500/20 block"
           >
             {saving ? 'Saving...' : 'Save Vibe Check'}
           </Button>

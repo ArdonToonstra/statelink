@@ -3,7 +3,7 @@ import postgres from 'postgres'
 import * as schema from './schema'
 
 // Create postgres connection
-const connectionString = process.env.DATABASE_URI!
+const connectionString = process.env.DATABASE_URL!
 
 // For queries - enable SSL for cloud databases like Neon
 const queryClient = postgres(connectionString, {
