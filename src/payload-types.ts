@@ -134,11 +134,8 @@ export interface User {
    * Group this user belongs to
    */
   groupID?: (number | null) | Group;
-  verificationCode?: string | null;
-  verificationCodeExpiresAt?: string | null;
-  lastVerificationEmailSentAt?: string | null;
   /**
-   * Has the user verified their email?
+   * Has the user verified their email? (Managed by Better Auth)
    */
   isVerified?: boolean | null;
   updatedAt: string;
@@ -344,9 +341,6 @@ export interface PayloadMigration {
 export interface UsersSelect<T extends boolean = true> {
   displayName?: T;
   groupID?: T;
-  verificationCode?: T;
-  verificationCodeExpiresAt?: T;
-  lastVerificationEmailSentAt?: T;
   isVerified?: T;
   updatedAt?: T;
   createdAt?: T;

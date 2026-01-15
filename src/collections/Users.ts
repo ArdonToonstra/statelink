@@ -25,35 +25,13 @@ export const Users: CollectionConfig = {
       },
     },
 
-    // Verification Fields
-    {
-      name: 'verificationCode',
-      type: 'text',
-      admin: {
-        hidden: true,
-        disabled: true,
-      },
-    },
-    {
-      name: 'verificationCodeExpiresAt',
-      type: 'date',
-      admin: {
-        hidden: true,
-      },
-    },
-    {
-      name: 'lastVerificationEmailSentAt',
-      type: 'date',
-      admin: {
-        hidden: true,
-      },
-    },
+    // isVerified is now managed by Better Auth but kept here for Payload admin visibility
     {
       name: 'isVerified',
       type: 'checkbox',
       defaultValue: false,
       admin: {
-        description: 'Has the user verified their email?',
+        description: 'Has the user verified their email? (Managed by Better Auth)',
       },
     },
   ],

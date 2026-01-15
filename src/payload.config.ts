@@ -33,6 +33,7 @@ export default buildConfig({
     pool: {
       connectionString: process.env.DATABASE_URI || '',
     },
+    push: false, // Disable automatic schema push - we manage migrations manually
   }),
   sharp,
   plugins: [

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Zap, ArrowLeft, Users, Plus, ArrowRight, Download, Trash2, ArrowRightLeft, Mail } from 'lucide-react'
 import { toast } from 'sonner'
+import { authClient } from '@/lib/auth-client'
 
 function OnboardingContent() {
   const router = useRouter()
@@ -82,21 +83,16 @@ function OnboardingContent() {
     setError('')
 
     try {
-      const response = await fetch('/api/users/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // Important: include cookies
-        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+      const result = await authClient.signIn.email({
+        email: loginEmail,
+        password: loginPassword,
       })
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Login failed')
+      if (result.error) {
+        throw new Error(result.error.message || 'Login failed')
       }
 
-      // Successful Login - give browser a moment to set cookie
-      // Then navigate to dashboard
+      // Successful Login - navigate to dashboard
       setTimeout(() => {
         router.push('/dashboard')
       }, 100)
@@ -147,30 +143,41 @@ function OnboardingContent() {
       setError('')
 
       try {
-        // Check if we already have a user in session (from prev step or local)
-        // Actually, we are creating new here.
+        // Sign up with Better Auth
+        // displayName is a required custom field in our Better Auth config
+        const result = await authClient.signUp.email({
+          email,
+          password,
+          name: displayName,
+          displayName, // Custom field required by our config
+        } as any)
 
-        const userResponse = await fetch('/api/users/create', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            displayName,
-            email,
-            password
-          }),
-        })
-        const userData = await userResponse.json()
-        if (!userResponse.ok) {
-          if (userData.error === 'User with this email already exists') {
+        if (result.error) {
+          if (result.error.message?.includes('already exists') || result.error.code === 'USER_ALREADY_EXISTS') {
             throw new Error("This email is already taken. Please log in.")
-          } else {
-            throw new Error(userData.error || 'Failed to create user account')
           }
+          throw new Error(result.error.message || 'Failed to create user account')
         }
 
-        const newUserId = userData.user.id
-        setUserId(newUserId)
+        const newUserId = result.data?.user?.id
+        setUserId(newUserId || null)
+
+        // Create corresponding Payload user for app data (groupID, etc.)
+        try {
+          await fetch('/api/users/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              email,
+              displayName,
+              betterAuthId: newUserId,
+            }),
+          })
+        } catch (syncErr) {
+          console.error('Failed to sync Payload user:', syncErr)
+          // Continue anyway - the sync can happen later
+        }
 
         setError('')
 
@@ -178,6 +185,15 @@ function OnboardingContent() {
         const isVerificationEnabled = process.env.NEXT_PUBLIC_IS_VERIFICATION_ENABLED === 'true'
 
         if (isVerificationEnabled) {
+          // Send verification OTP via Better Auth
+          try {
+            await authClient.emailOtp.sendVerificationOtp({
+              email,
+              type: 'email-verification',
+            })
+          } catch (otpErr) {
+            console.error('Failed to send OTP:', otpErr)
+          }
           // Start resend cooldown since email was just sent
           setResendCooldown(300)
           // Go to verification step (step 3)
@@ -236,17 +252,13 @@ function OnboardingContent() {
     setError('')
 
     try {
-      const res = await fetch('/api/auth/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ code: verificationCode }),
+      const result = await authClient.emailOtp.verifyEmail({
+        email,
+        otp: verificationCode,
       })
 
-      const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Verification failed')
+      if (result.error) {
+        throw new Error(result.error.message || 'Verification failed')
       }
 
       toast.success('Email verified!')
@@ -268,21 +280,18 @@ function OnboardingContent() {
     setError('')
 
     try {
-      const res = await fetch('/api/auth/send-verification', {
-        method: 'POST',
-        credentials: 'include',
+      const result = await authClient.emailOtp.sendVerificationOtp({
+        email,
+        type: 'email-verification',
       })
 
-      const data = await res.json()
-
-      if (res.status === 429) {
-        toast.error(data.error)
-        setResendCooldown(300)
-        return
-      }
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to send email')
+      if (result.error) {
+        if (result.error.code === 'RATE_LIMIT_EXCEEDED') {
+          toast.error('Please wait before requesting another code')
+          setResendCooldown(300)
+          return
+        }
+        throw new Error(result.error.message || 'Failed to send email')
       }
 
       toast.success('Verification code sent!')

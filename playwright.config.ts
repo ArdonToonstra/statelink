@@ -11,14 +11,6 @@ export default defineConfig({
         baseURL: 'http://localhost:3000',
         trace: 'on-first-retry',
     },
-    // Ensure email verification is enabled for tests
-    // The test-get-code endpoint will provide codes without sending emails
-    // Empty MAILJET keys ensure no actual emails are sent
-    env: {
-        NEXT_PUBLIC_IS_VERIFICATION_ENABLED: 'true',
-        MAILJET_API_KEY: '',
-        MAILJET_SECRET_KEY: '',
-    },
     projects: [
         {
             name: 'chromium',

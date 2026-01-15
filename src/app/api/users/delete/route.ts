@@ -2,6 +2,7 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 import { NextResponse } from 'next/server'
 import { getAuthenticatedUser } from '@/lib/auth'
+import { Pool } from 'pg'
 
 export async function DELETE() {
     try {
@@ -54,17 +55,31 @@ export async function DELETE() {
             })
         }
 
-        // Delete the user
+        // Delete the Payload user
         await payload.delete({
             collection: 'users',
             id: user.id,
         })
 
-        // Clear the auth cookie
+        // Delete the Better Auth user from the database
+        if (user.betterAuthId) {
+            const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+            try {
+                // Delete in order due to foreign key constraints
+                await pool.query('DELETE FROM "session" WHERE "userId" = $1', [user.betterAuthId])
+                await pool.query('DELETE FROM "account" WHERE "userId" = $1', [user.betterAuthId])
+                await pool.query('DELETE FROM "user" WHERE "id" = $1', [user.betterAuthId])
+            } finally {
+                await pool.end()
+            }
+        }
+
+        // Clear auth cookies
         const response = NextResponse.json({
             message: 'Account deleted successfully',
         })
         response.cookies.delete('payload-token')
+        response.cookies.delete('better-auth.session_token')
 
         return response
     } catch (error) {

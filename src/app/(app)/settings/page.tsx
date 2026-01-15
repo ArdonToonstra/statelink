@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/card'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { PageHeader } from '@/components/ui/page-header'
 import { Download, Trash2, User, Users, Copy, Check, LogOut, Loader2, LogOut as LeaveIcon, RefreshCw, AlertCircle, Plus, Hash, Smartphone } from 'lucide-react'
+import { authClient } from '@/lib/auth-client'
 
 // Sub-component for regeneration button state
 function RegenerateButton({ group, onUpdate }: { group: any, onUpdate: (g: any) => void }) {
@@ -227,10 +228,7 @@ function SettingsContent() {
 
     const handleLogout = async () => {
         try {
-            await fetch('/api/users/logout', {
-                method: 'POST',
-                credentials: 'include'
-            })
+            await authClient.signOut()
         } catch (e) {
             console.error('Logout error:', e)
         }
