@@ -19,6 +19,7 @@ export const users = pgTable('user', {
   // App-specific fields
   displayName: text('display_name'),
   groupId: text('group_id').references(() => groups.id),
+  timezone: text('timezone').default('UTC'), // User's timezone for quiet hours calculation
 })
 
 export const sessions = pgTable('session', {
@@ -65,11 +66,13 @@ export const groups = pgTable('groups', {
   name: text('name').notNull(),
   inviteCode: varchar('invite_code', { length: 8 }).notNull().unique(),
   inviteCodeCreated: timestamp('invite_code_created').defaultNow(),
-  frequency: integer('frequency').notNull().default(2),
+  frequency: integer('frequency').notNull().default(2), // Pings per week
   intervalMode: intervalModeEnum('interval_mode').notNull().default('random'),
-  quietHoursStart: integer('quiet_hours_start'),
-  quietHoursEnd: integer('quiet_hours_end'),
+  quietHoursStart: integer('quiet_hours_start'), // Hour 0-23
+  quietHoursEnd: integer('quiet_hours_end'), // Hour 0-23
   ownerId: text('owner_id').notNull(),
+  lastPingTime: timestamp('last_ping_time'), // When the last ping was sent
+  nextPingTime: timestamp('next_ping_time'), // When the next ping should be sent
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 })
