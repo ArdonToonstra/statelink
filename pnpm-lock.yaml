@@ -154,8 +154,8 @@ importers:
         specifier: ^1.57.0
         version: 1.57.0
       '@types/node':
-        specifier: ^25.0.3
-        version: 25.0.3
+        specifier: ^25.0.8
+        version: 25.0.8
       '@types/react':
         specifier: npm:types-react@19.0.0-rc.1
         version: types-react@19.0.0-rc.1
@@ -2703,9 +2703,6 @@ packages:
 
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
-
-  '@types/node@25.0.3':
-    resolution: {integrity: sha512-W609buLVRVmeW693xKfzHeIV6nJGGz98uCPfeXI1ELMLXVeKYZ9m15fAMSaUPBHYLGFsVRcMmSCksQOrZV9BYA==}
 
   '@types/node@25.0.8':
     resolution: {integrity: sha512-powIePYMmC3ibL0UJ2i2s0WIbq6cg6UyVFQxSCpaPxxzAaziRfimGivjdF943sSGV6RADVbk0Nvlm5P/FB44Zg==}
@@ -9220,7 +9217,7 @@ snapshots:
 
   '@types/busboy@1.5.4':
     dependencies:
-      '@types/node': 25.0.3
+      '@types/node': 25.0.8
 
   '@types/d3-array@3.2.2': {}
 
@@ -9279,7 +9276,7 @@ snapshots:
   '@types/jsonwebtoken@9.0.10':
     dependencies:
       '@types/ms': 2.1.0
-      '@types/node': 25.0.3
+      '@types/node': 25.0.8
 
   '@types/lodash@4.17.21': {}
 
@@ -9289,10 +9286,6 @@ snapshots:
 
   '@types/ms@2.1.0': {}
 
-  '@types/node@25.0.3':
-    dependencies:
-      undici-types: 7.16.0
-
   '@types/node@25.0.8':
     dependencies:
       undici-types: 7.16.0
@@ -9301,7 +9294,7 @@ snapshots:
 
   '@types/pg@8.10.2':
     dependencies:
-      '@types/node': 25.0.3
+      '@types/node': 25.0.8
       pg-protocol: 1.10.3
       pg-types: 4.1.0
 
@@ -9327,7 +9320,7 @@ snapshots:
 
   '@types/web-push@3.6.4':
     dependencies:
-      '@types/node': 25.0.3
+      '@types/node': 25.0.8
 
   '@typescript-eslint/eslint-plugin@8.51.0(@typescript-eslint/parser@8.51.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)':
     dependencies:
