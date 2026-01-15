@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { auth } from '@/lib/better-auth'
-import { Pool } from 'pg'
+import { db } from '@/db'
+import { verifications } from '@/db/schema'
+import { desc, like } from 'drizzle-orm'
 
 // This endpoint is for TESTING/DEVELOPMENT ONLY
 // It is disabled in production
@@ -29,42 +31,32 @@ export async function GET() {
 
         console.log('[TEST-GET-CODE] User authenticated:', session.user.id, 'Email:', userEmail, 'Is verified:', isVerified)
 
-        // Query Better Auth's verification table directly
-        const pool = new Pool({
-            connectionString: process.env.DATABASE_URI,
-        })
+        // Query Better Auth's verification table using Drizzle
+        // The identifier includes a prefix like 'email-verification-otp-' + email
+        // The value includes a counter suffix like ':0'
+        const result = await db
+            .select({ value: verifications.value, expiresAt: verifications.expiresAt })
+            .from(verifications)
+            .where(like(verifications.identifier, `%${userEmail}`))
+            .orderBy(desc(verifications.createdAt))
+            .limit(1)
 
-        try {
-            // Better Auth stores verifications in a 'verification' table
-            // The identifier includes a prefix like 'email-verification-otp-' + email
-            // The value includes a counter suffix like ':0'
-            const result = await pool.query(
-                `SELECT value, expires_at FROM verification 
-                 WHERE identifier LIKE $1 
-                 ORDER BY created_at DESC 
-                 LIMIT 1`,
-                [`%${userEmail}`]
-            )
-
-            if (result.rows.length === 0) {
-                return NextResponse.json({ 
-                    error: 'No verification code', 
-                    debug: 'No verification record found for user',
-                    isVerified 
-                }, { status: 404 })
-            }
-
-            const verification = result.rows[0]
-            // Extract OTP code from value (format is "code:counter")
-            const otpCode = verification.value.split(':')[0]
-            
-            return NextResponse.json({
-                verificationCode: otpCode,
-                expiresAt: verification.expiresAt,
-            })
-        } finally {
-            await pool.end()
+        if (result.length === 0) {
+            return NextResponse.json({ 
+                error: 'No verification code', 
+                debug: 'No verification record found for user',
+                isVerified 
+            }, { status: 404 })
         }
+
+        const verification = result[0]
+        // Extract OTP code from value (format is "code:counter")
+        const otpCode = verification.value.split(':')[0]
+        
+        return NextResponse.json({
+            verificationCode: otpCode,
+            expiresAt: verification.expiresAt,
+        })
     } catch (error) {
         console.error('[TEST-GET-CODE] Error getting verification code:', error)
         return NextResponse.json({ error: 'Failed to get code', details: String(error) }, { status: 500 })
