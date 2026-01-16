@@ -7,9 +7,38 @@ import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { PageHeader } from '@/components/ui/page-header'
-import { Download, Trash2, User, Users, Copy, Check, LogOut, Loader2, LogOut as LeaveIcon, RefreshCw, AlertCircle, Plus, Hash, Smartphone } from 'lucide-react'
+import { Download, Trash2, User, Users, Copy, Check, LogOut, Loader2, LogOut as LeaveIcon, RefreshCw, AlertCircle, Plus, Hash, Smartphone, Bell, BellOff, Clock, Zap } from 'lucide-react'
 import { authClient } from '@/lib/auth-client'
 import { trpc } from '@/lib/trpc'
+
+// Helper to subscribe to push notifications
+async function subscribeToPush(): Promise<PushSubscription | null> {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        alert('Push notifications are not supported in your browser')
+        return null
+    }
+    
+    const permission = await Notification.requestPermission()
+    if (permission !== 'granted') {
+        alert('Notification permission denied')
+        return null
+    }
+    
+    const registration = await navigator.serviceWorker.ready
+    const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+    })
+    
+    return subscription
+}
+
+// Helper to get existing subscription
+async function getExistingSubscription(): Promise<PushSubscription | null> {
+    if (!('serviceWorker' in navigator)) return null
+    const registration = await navigator.serviceWorker.ready
+    return registration.pushManager.getSubscription()
+}
 
 // Sub-component for regeneration button state
 function RegenerateButton({ group, onUpdate }: { group: any, onUpdate: (g: any) => void }) {
@@ -97,6 +126,15 @@ function SettingsContent() {
     // Form State
     const [displayName, setDisplayName] = useState('')
     const [groupName, setGroupName] = useState('')
+    
+    // Push notification state
+    const [pushEnabled, setPushEnabled] = useState(false)
+    const [pushLoading, setPushLoading] = useState(true)
+    
+    // Admin settings state
+    const [frequency, setFrequency] = useState(2)
+    const [quietHoursStart, setQuietHoursStart] = useState<number | null>(null)
+    const [quietHoursEnd, setQuietHoursEnd] = useState<number | null>(null)
 
     const [copied, setCopied] = useState(false)
     const [saveStatus, setSaveStatus] = useState<{ field: string, status: 'saving' | 'saved' | 'idle' }>({ field: '', status: 'idle' })
@@ -110,6 +148,8 @@ function SettingsContent() {
     const leaveGroupMutation = trpc.users.leaveGroup.useMutation()
     const removeGroupMemberMutation = trpc.groups.removeMember.useMutation()
     const deleteAccountMutation = trpc.users.deleteAccount.useMutation()
+    const pushSubscribeMutation = trpc.push.subscribe.useMutation()
+    const pushUnsubscribeMutation = trpc.push.unsubscribe.useMutation()
 
     // Redirect if unauthorized
     useEffect(() => {
@@ -126,10 +166,81 @@ function SettingsContent() {
             setDisplayName(settingsQuery.data.user.displayName || '')
             if (settingsQuery.data.group) {
                 setGroupName(settingsQuery.data.group.name || '')
+                setFrequency(settingsQuery.data.group.frequency ?? 2)
+                setQuietHoursStart(settingsQuery.data.group.quietHoursStart ?? null)
+                setQuietHoursEnd(settingsQuery.data.group.quietHoursEnd ?? null)
             }
             setLoading(false)
         }
     }, [settingsQuery.data])
+    
+    // Check push notification status on mount
+    useEffect(() => {
+        const checkPushStatus = async () => {
+            try {
+                const subscription = await getExistingSubscription()
+                setPushEnabled(!!subscription)
+            } catch (e) {
+                console.error('Error checking push status:', e)
+            } finally {
+                setPushLoading(false)
+            }
+        }
+        checkPushStatus()
+    }, [])
+    
+    // Handle push notification toggle
+    const handlePushToggle = async () => {
+        setPushLoading(true)
+        try {
+            if (pushEnabled) {
+                // Unsubscribe
+                const subscription = await getExistingSubscription()
+                if (subscription) {
+                    await pushUnsubscribeMutation.mutateAsync({ endpoint: subscription.endpoint })
+                    await subscription.unsubscribe()
+                }
+                setPushEnabled(false)
+            } else {
+                // Subscribe
+                const subscription = await subscribeToPush()
+                if (subscription) {
+                    const json = subscription.toJSON()
+                    await pushSubscribeMutation.mutateAsync({
+                        endpoint: subscription.endpoint,
+                        p256dh: json.keys?.p256dh ?? '',
+                        auth: json.keys?.auth ?? '',
+                    })
+                    setPushEnabled(true)
+                }
+            }
+        } catch (e) {
+            console.error('Error toggling push:', e)
+            alert('Failed to update notification settings')
+        } finally {
+            setPushLoading(false)
+        }
+    }
+    
+    // Handle admin settings save
+    const handleAdminSettingsSave = async (field: string, value: any) => {
+        if (!user.isGroupOwner || !group) return
+        
+        setSaveStatus({ field, status: 'saving' })
+        try {
+            await updateGroupMutation.mutateAsync({
+                groupId: group.id,
+                [field]: value,
+            })
+            setSaveStatus({ field, status: 'saved' })
+            setTimeout(() => {
+                setSaveStatus(prev => prev.field === field ? { ...prev, status: 'idle' } : prev)
+            }, 2000)
+        } catch (e) {
+            console.error(e)
+            setSaveStatus(prev => prev.field === field ? { ...prev, status: 'idle' } : prev)
+        }
+    }
 
 
     const handleCopyCode = () => {
@@ -324,6 +435,38 @@ function SettingsContent() {
                         </Card>
 
                         <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
+                            <h2 className="font-semibold text-gray-900 dark:text-white">Notifications</h2>
+                            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-xl">
+                                <div className="flex items-center gap-3">
+                                    {pushEnabled ? (
+                                        <Bell className="w-5 h-5 text-primary" />
+                                    ) : (
+                                        <BellOff className="w-5 h-5 text-gray-400" />
+                                    )}
+                                    <div>
+                                        <div className="font-semibold text-gray-700 dark:text-gray-200">Push Notifications</div>
+                                        <div className="text-xs text-gray-500">Get notified for vibe check-ins</div>
+                                    </div>
+                                </div>
+                                <Button 
+                                    variant={pushEnabled ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={handlePushToggle}
+                                    disabled={pushLoading}
+                                    className="min-w-[80px]"
+                                >
+                                    {pushLoading ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : pushEnabled ? (
+                                        'Enabled'
+                                    ) : (
+                                        'Enable'
+                                    )}
+                                </Button>
+                            </div>
+                        </Card>
+
+                        <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
                             <h2 className="font-semibold text-gray-900 dark:text-white">Application</h2>
                             <Button variant="outline" onClick={() => router.push('/install')} className="w-full h-12 rounded-xl justify-start px-4 gap-3 bg-gray-50 border-0 hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200">
                                 <Smartphone className="w-5 h-5 text-gray-500" />
@@ -492,6 +635,90 @@ function SettingsContent() {
                                 ))}
                             </div>
                         </Card>
+
+                        {/* Admin Panel - Only visible to group owners */}
+                        {user.isGroupOwner && (
+                            <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Zap className="w-5 h-5 text-primary" />
+                                    <h2 className="font-semibold text-gray-900 dark:text-white">Ping Settings</h2>
+                                </div>
+                                
+                                <div>
+                                    <div className="flex justify-between items-center mb-2">
+                                        <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
+                                            Pings per Week
+                                        </label>
+                                        <StatusIndicator fieldName="frequency" />
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="range"
+                                            min="1"
+                                            max="7"
+                                            value={frequency}
+                                            onChange={(e) => setFrequency(parseInt(e.target.value))}
+                                            onMouseUp={() => handleAdminSettingsSave('frequency', frequency)}
+                                            onTouchEnd={() => handleAdminSettingsSave('frequency', frequency)}
+                                            className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-primary"
+                                        />
+                                        <span className="text-lg font-bold text-primary w-8 text-center">{frequency}</span>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">How often members get pinged for check-ins</p>
+                                </div>
+                                
+                                <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <Clock className="w-4 h-4 text-gray-500" />
+                                        <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
+                                            Quiet Hours
+                                        </label>
+                                        <StatusIndicator fieldName="quietHours" />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-xs text-gray-500 mb-1 block">Start</label>
+                                            <select
+                                                value={quietHoursStart ?? ''}
+                                                onChange={(e) => {
+                                                    const val = e.target.value === '' ? null : parseInt(e.target.value)
+                                                    setQuietHoursStart(val)
+                                                    handleAdminSettingsSave('quietHoursStart', val)
+                                                }}
+                                                className="w-full h-10 px-3 bg-gray-50 dark:bg-gray-900 rounded-lg border-0 text-sm"
+                                            >
+                                                <option value="">Off</option>
+                                                {Array.from({ length: 24 }, (_, i) => (
+                                                    <option key={i} value={i}>
+                                                        {i.toString().padStart(2, '0')}:00
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-gray-500 mb-1 block">End</label>
+                                            <select
+                                                value={quietHoursEnd ?? ''}
+                                                onChange={(e) => {
+                                                    const val = e.target.value === '' ? null : parseInt(e.target.value)
+                                                    setQuietHoursEnd(val)
+                                                    handleAdminSettingsSave('quietHoursEnd', val)
+                                                }}
+                                                className="w-full h-10 px-3 bg-gray-50 dark:bg-gray-900 rounded-lg border-0 text-sm"
+                                            >
+                                                <option value="">Off</option>
+                                                {Array.from({ length: 24 }, (_, i) => (
+                                                    <option key={i} value={i}>
+                                                        {i.toString().padStart(2, '0')}:00
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-2">No pings will be sent during quiet hours</p>
+                                </div>
+                            </Card>
+                        )}
 
                         <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
                             <h2 className="font-semibold text-gray-900 dark:text-white">Group Actions</h2>

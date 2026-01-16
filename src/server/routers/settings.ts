@@ -33,6 +33,11 @@ export const settingsRouter = createTRPCRouter({
         id: user.group.id,
         name: user.group.name,
         inviteCode: user.group.inviteCode,
+        inviteCodeCreated: user.group.inviteCodeCreated,
+        frequency: user.group.frequency,
+        intervalMode: user.group.intervalMode,
+        quietHoursStart: user.group.quietHoursStart,
+        quietHoursEnd: user.group.quietHoursEnd,
         members: members.map(m => ({
           id: m.id,
           name: m.displayName,
