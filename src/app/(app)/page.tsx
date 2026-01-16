@@ -8,7 +8,7 @@ export default function Home() {
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-100 via-gray-50 to-gray-50 dark:from-blue-900/20 dark:via-gray-900 dark:to-gray-900">
 
       {/* Navbar / Header */}
-      <header className="w-full p-4 md:p-6">
+      <header className="w-full p-4 md:p-6 relative z-10">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <div className="bg-primary/10 p-2 rounded-lg">
@@ -33,7 +33,7 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col items-center justify-center p-4 text-center max-w-4xl mx-auto mt-[-4rem]">
+      <main className="flex-1 flex flex-col items-center justify-center p-4 text-center max-w-4xl mx-auto mt-0 md:mt-[-4rem]">
 
 
         {/* Hero Text */}
