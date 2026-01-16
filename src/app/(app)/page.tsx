@@ -58,8 +58,13 @@ export default function Home() {
       </main>
 
       {/* Basic Footer */}
-      <footer className="p-6 text-center text-sm text-gray-400 dark:text-gray-600">
-        © {new Date().getFullYear()} StateLink. All rights reserved.
+      <footer className="p-6 text-center text-xs text-gray-400 dark:text-gray-600">
+        <div className="mb-2">
+          <Link href="/terms" className="hover:text-gray-600 dark:hover:text-gray-400 transition-colors">Terms</Link>
+          <span className="mx-2">·</span>
+          <Link href="/privacy" className="hover:text-gray-600 dark:hover:text-gray-400 transition-colors">Privacy</Link>
+        </div>
+        <div>© {new Date().getFullYear()} StateLink</div>
       </footer>
     </div>
   )
