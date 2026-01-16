@@ -8,25 +8,27 @@ export default function Home() {
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-100 via-gray-50 to-gray-50 dark:from-blue-900/20 dark:via-gray-900 dark:to-gray-900">
 
       {/* Navbar / Header */}
-      <header className="w-full p-4 md:p-6 flex items-center justify-between max-w-7xl mx-auto w-full">
-        <div className="flex items-center gap-2">
-          <div className="bg-primary/10 p-2 rounded-lg">
-            <Zap className="w-5 h-5 text-primary" />
-          </div>
-          <span className="font-bold text-xl text-gray-900 dark:text-white tracking-tight">StateLink</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link href="/how-it-works" className="font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors px-4 py-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
-            How it Works
+      <header className="w-full p-4 md:p-6">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2">
+            <div className="bg-primary/10 p-2 rounded-lg">
+              <Zap className="w-5 h-5 text-primary" />
+            </div>
+            <span className="font-bold text-xl text-gray-900 dark:text-white tracking-tight">StateLink</span>
           </Link>
-          <div className="text-gray-300 dark:text-gray-600">|</div>
-          <Link href="/install" className="font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors px-4 py-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
-            Install App
-          </Link>
-          <div className="text-gray-300 dark:text-gray-600">|</div>
-          <Link href="/onboarding?view=login" className="font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors px-4 py-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
-            Log in
-          </Link>
+          <nav className="flex items-center gap-1 md:gap-2">
+            <Link href="/how-it-works" className="font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors px-2 md:px-4 py-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-sm md:text-base">
+              How it Works
+            </Link>
+            <div className="hidden sm:block text-gray-300 dark:text-gray-600">|</div>
+            <Link href="/install" className="font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors px-2 md:px-4 py-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-sm md:text-base">
+              Install
+            </Link>
+            <div className="hidden sm:block text-gray-300 dark:text-gray-600">|</div>
+            <Link href="/onboarding?view=login" className="font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors px-2 md:px-4 py-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-sm md:text-base">
+              Log in
+            </Link>
+          </nav>
         </div>
       </header>
 
