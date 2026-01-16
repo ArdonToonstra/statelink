@@ -35,7 +35,8 @@ export function StatsView({ checkins }: StatsViewProps) {
     const sortedCheckins = [...checkins].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
 
     // Group check-ins by day and calculate mean
-    const dailyData = sortedCheckins.reduce((acc, c) => {
+    type DailyDataEntry = { total: number; count: number; date: Date }
+    const dailyData: Record<string, DailyDataEntry> = sortedCheckins.reduce((acc, c) => {
         const dateKey = new Date(c.createdAt).toISOString().split('T')[0] // YYYY-MM-DD
         if (!acc[dateKey]) {
             acc[dateKey] = { total: 0, count: 0, date: new Date(c.createdAt) }
@@ -43,11 +44,11 @@ export function StatsView({ checkins }: StatsViewProps) {
         acc[dateKey].total += c.vibeScore || 0
         acc[dateKey].count += 1
         return acc
-    }, {} as Record<string, { total: number; count: number; date: Date }>)
+    }, {} as Record<string, DailyDataEntry>)
 
     const chartData = Object.entries(dailyData)
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(([dateKey, data]) => ({
+        .map(([dateKey, data]: [string, DailyDataEntry]) => ({
             date: data.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
             fullDate: dateKey,
             vibe: Math.round((data.total / data.count) * 10) / 10, // Mean score rounded to 1 decimal
