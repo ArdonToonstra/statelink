@@ -318,14 +318,11 @@ function OnboardingContent() {
     setLoading(true)
     setError('')
 
-    // If delete + download, we download first (can be improved with tRPC checkIns.list)
-    if (action === 'delete') {
-      // TODO: Download data before deleting
-      console.log('User chose to delete data before joining group')
-    }
+    // With multi-group support, migration is no longer needed
+    // Users can simply join groups and their check-ins are visible via membership
 
     try {
-      await joinGroupMutation.mutateAsync({ inviteCode, migrationAction: action })
+      await joinGroupMutation.mutateAsync({ inviteCode })
       router.push('/dashboard')
     } catch (err: any) {
       setError(err.message || 'An error occurred')

@@ -1,19 +1,41 @@
 'use client'
 
+import { useState, useRef, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { PageHeader } from "@/components/ui/page-header"
-import { Users, Zap, Settings, Activity } from "lucide-react"
+import { Users, Zap, Settings, Activity, ChevronDown, Check, Plus } from "lucide-react"
 import Link from 'next/link'
 import { useRouter } from "next/navigation"
 import { trpc } from "@/lib/trpc"
 
 export default function DashboardPage() {
   const router = useRouter()
-  const { data, isLoading, error } = trpc.dashboard.getData.useQuery(undefined, {
+  const [showGroupDropdown, setShowGroupDropdown] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  
+  const { data, isLoading, error, refetch } = trpc.dashboard.getData.useQuery(undefined, {
     retry: false,
   })
+  
+  const setActiveGroupMutation = trpc.groups.setActiveGroup.useMutation({
+    onSuccess: () => {
+      refetch()
+      setShowGroupDropdown(false)
+    },
+  })
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowGroupDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   // Redirect to onboarding if not authenticated
   if (error?.data?.code === 'UNAUTHORIZED') {
@@ -30,6 +52,8 @@ export default function DashboardPage() {
   const pulseValue = data.groupPulse ? parseFloat(data.groupPulse) : 0
   const hasVibe = !!data.groupPulse
   const isSolo = data.memberCount <= 1
+  const hasGroups = data.groups && data.groups.length > 0
+  const emptyVibeText = "Waiting for input..."
 
   // Color logic for pulse
   const getPulseColor = (val: number) => {
@@ -40,7 +64,10 @@ export default function DashboardPage() {
 
   // Empty State Logic
   const showInviteCallout = isSolo && !hasVibe && !data.userLastVibe
-  const emptyVibeText = "Waiting for input..."
+
+  const handleGroupSwitch = (groupId: string | null) => {
+    setActiveGroupMutation.mutate({ groupId })
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-100 via-gray-50 to-gray-50 dark:from-blue-900/20 dark:via-gray-900 dark:to-gray-900 font-sans pb-20">
@@ -48,13 +75,91 @@ export default function DashboardPage() {
       {/* Header */}
       <PageHeader
         title={
-          <div className="flex items-center gap-2">
-            <div className="bg-primary/10 p-1.5 rounded-lg">
-              <Zap className="w-5 h-5 text-primary" />
-            </div>
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400">
-              {data.groupName}
-            </span>
+          <div className="relative" ref={dropdownRef}>
+            <button 
+              onClick={() => setShowGroupDropdown(!showGroupDropdown)}
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+            >
+              <div className="bg-primary/10 p-1.5 rounded-lg">
+                <Zap className="w-5 h-5 text-primary" />
+              </div>
+              <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400">
+                {data.groupName}
+              </span>
+              {hasGroups && (
+                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showGroupDropdown ? 'rotate-180' : ''}`} />
+              )}
+            </button>
+            
+            {/* Group Switcher Dropdown */}
+            {showGroupDropdown && (
+              <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="p-2">
+                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 py-2">
+                    Your Groups
+                  </div>
+                  
+                  {/* Solo mode option */}
+                  <button
+                    onClick={() => handleGroupSwitch(null)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                      !data.activeGroupId 
+                        ? 'bg-primary/10 text-primary' 
+                        : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200'
+                    }`}
+                  >
+                    <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                      <Users className="w-4 h-4 text-gray-500" />
+                    </div>
+                    <span className="font-medium flex-1 text-left">Solo Mode</span>
+                    {!data.activeGroupId && <Check className="w-4 h-4" />}
+                  </button>
+                  
+                  {/* Group list */}
+                  {data.groups?.map((group) => (
+                    <button
+                      key={group.id}
+                      onClick={() => handleGroupSwitch(group.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                        data.activeGroupId === group.id 
+                          ? 'bg-primary/10 text-primary' 
+                          : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200'
+                      }`}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900 dark:to-purple-900 flex items-center justify-center text-xs font-bold text-primary">
+                        {group.name[0]?.toUpperCase()}
+                      </div>
+                      <div className="flex-1 text-left">
+                        <span className="font-medium">{group.name}</span>
+                        {group.isOwner && (
+                          <span className="ml-2 text-xs text-gray-400">Owner</span>
+                        )}
+                      </div>
+                      {data.activeGroupId === group.id && <Check className="w-4 h-4" />}
+                    </button>
+                  ))}
+                </div>
+                
+                <div className="border-t border-gray-200 dark:border-gray-700 p-2">
+                  <Link href="/onboarding?step=4&action=create" onClick={() => setShowGroupDropdown(false)}>
+                    <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors">
+                      <div className="w-8 h-8 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center">
+                        <Plus className="w-4 h-4 text-gray-400" />
+                      </div>
+                      <span className="font-medium">Create New Group</span>
+                    </button>
+                  </Link>
+                  <Link href="/onboarding?step=4&action=join" onClick={() => setShowGroupDropdown(false)}>
+                    <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors">
+                      <div className="w-8 h-8 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center">
+                        <Users className="w-4 h-4 text-gray-400" />
+                      </div>
+                      <span className="font-medium">Join Group</span>
+                    </button>
+                  </Link>
+                </div>
+              </div>
+            )}
           </div>
         }
         maxWidth="md"

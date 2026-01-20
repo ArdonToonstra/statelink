@@ -1,7 +1,7 @@
 import { z } from 'zod'
-import { eq, and, gt, desc, count } from 'drizzle-orm'
+import { eq, and, gt, desc, count, inArray } from 'drizzle-orm'
 import { createTRPCRouter, protectedProcedure } from '../trpc'
-import { users, groups, checkIns } from '@/db/schema'
+import { users, groups, checkIns, userGroups } from '@/db/schema'
 
 export const dashboardRouter = createTRPCRouter({
   // Get dashboard data
@@ -9,7 +9,12 @@ export const dashboardRouter = createTRPCRouter({
     const user = await ctx.db.query.users.findFirst({
       where: eq(users.id, ctx.user.id),
       with: {
-        group: true,
+        activeGroup: true,
+        userGroups: {
+          with: {
+            group: true,
+          },
+        },
       },
     })
     
@@ -20,6 +25,8 @@ export const dashboardRouter = createTRPCRouter({
         userLastVibe: null,
         groupName: 'No Group',
         vibeAverageHours: 24,
+        activeGroupId: null,
+        groups: [],
       }
     }
     
@@ -28,31 +35,47 @@ export const dashboardRouter = createTRPCRouter({
     let groupName = 'No Group'
     let vibeAverageHours = 24
     
-    if (user.groupId && user.group) {
-      groupName = user.group.name
-      vibeAverageHours = user.group.vibeAverageHours ?? 24
+    // Get all user's groups for the switcher
+    const userGroupsList = user.userGroups.map(ug => ({
+      id: ug.group.id,
+      name: ug.group.name,
+      role: ug.role,
+      isOwner: ug.group.ownerId === user.id,
+    }))
+    
+    if (user.activeGroupId && user.activeGroup) {
+      groupName = user.activeGroup.name
+      vibeAverageHours = user.activeGroup.vibeAverageHours ?? 24
       
-      // Get member count
-      const members = await ctx.db
+      // Get member count via junction table
+      const memberships = await ctx.db
         .select({ count: count() })
-        .from(users)
-        .where(eq(users.groupId, user.groupId))
-      memberCount = members[0]?.count ?? 0
+        .from(userGroups)
+        .where(eq(userGroups.groupId, user.activeGroupId))
+      memberCount = memberships[0]?.count ?? 0
       
-      // Calculate group pulse using configurable time window
+      // Get all member IDs for this group
+      const groupMemberships = await ctx.db.query.userGroups.findMany({
+        where: eq(userGroups.groupId, user.activeGroupId),
+      })
+      const memberIds = groupMemberships.map(m => m.userId)
+      
+      // Calculate group pulse using configurable time window and user membership lookup
       const timeWindowStart = new Date(Date.now() - vibeAverageHours * 60 * 60 * 1000)
       
-      const recentCheckIns = await ctx.db.query.checkIns.findMany({
-        where: and(
-          eq(checkIns.groupId, user.groupId),
-          gt(checkIns.createdAt, timeWindowStart)
-        ),
-        limit: 100,
-      })
-      
-      if (recentCheckIns.length > 0) {
-        const sum = recentCheckIns.reduce((acc, curr) => acc + curr.vibeScore, 0)
-        groupPulse = (sum / recentCheckIns.length).toFixed(1)
+      if (memberIds.length > 0) {
+        const recentCheckIns = await ctx.db.query.checkIns.findMany({
+          where: and(
+            inArray(checkIns.userId, memberIds),
+            gt(checkIns.createdAt, timeWindowStart)
+          ),
+          limit: 100,
+        })
+        
+        if (recentCheckIns.length > 0) {
+          const sum = recentCheckIns.reduce((acc, curr) => acc + curr.vibeScore, 0)
+          groupPulse = (sum / recentCheckIns.length).toFixed(1)
+        }
       }
     }
     
@@ -68,6 +91,8 @@ export const dashboardRouter = createTRPCRouter({
       userLastVibe: userLastCheckIn ?? null,
       groupName,
       vibeAverageHours,
+      activeGroupId: user.activeGroupId,
+      groups: userGroupsList,
     }
   }),
 })

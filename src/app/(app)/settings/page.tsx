@@ -123,6 +123,8 @@ function SettingsContent() {
     // Data State
     const [user, setUser] = useState<any>(null)
     const [group, setGroup] = useState<any>(null)
+    const [allGroups, setAllGroups] = useState<any[]>([])
+    const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
 
     // Form State
     const [displayName, setDisplayName] = useState('')
@@ -147,8 +149,9 @@ function SettingsContent() {
     })
     const updateProfileMutation = trpc.users.updateProfile.useMutation()
     const updateGroupMutation = trpc.groups.update.useMutation()
-    const leaveGroupMutation = trpc.users.leaveGroup.useMutation()
+    const leaveGroupMutation = trpc.groups.leave.useMutation()
     const removeGroupMemberMutation = trpc.groups.removeMember.useMutation()
+    const setActiveGroupMutation = trpc.groups.setActiveGroup.useMutation()
     const deleteAccountMutation = trpc.users.deleteAccount.useMutation()
     const pushSubscribeMutation = trpc.push.subscribe.useMutation()
     const pushUnsubscribeMutation = trpc.push.unsubscribe.useMutation()
@@ -164,15 +167,36 @@ function SettingsContent() {
     useEffect(() => {
         if (settingsQuery.data) {
             setUser(settingsQuery.data.user)
-            setGroup(settingsQuery.data.group)
-            setDisplayName(settingsQuery.data.user.displayName || '')
-            if (settingsQuery.data.group) {
-                setGroupName(settingsQuery.data.group.name || '')
-                setFrequency(settingsQuery.data.group.frequency ?? 2)
-                setQuietHoursStart(settingsQuery.data.group.quietHoursStart ?? null)
-                setQuietHoursEnd(settingsQuery.data.group.quietHoursEnd ?? null)
-                setVibeAverageHours(settingsQuery.data.group.vibeAverageHours ?? 24)
+            setAllGroups(settingsQuery.data.groups || [])
+            
+            // Set the active group as the initially selected one
+            const activeGroup = settingsQuery.data.groups?.find(
+                (g: any) => g.id === settingsQuery.data.user.activeGroupId
+            )
+            if (activeGroup) {
+                setGroup(activeGroup)
+                setSelectedGroupId(activeGroup.id)
+                setGroupName(activeGroup.name || '')
+                setFrequency(activeGroup.frequency ?? 2)
+                setQuietHoursStart(activeGroup.quietHoursStart ?? null)
+                setQuietHoursEnd(activeGroup.quietHoursEnd ?? null)
+                setVibeAverageHours(activeGroup.vibeAverageHours ?? 24)
+            } else if (settingsQuery.data.groups?.length > 0) {
+                // If no active group, use the first one
+                const firstGroup = settingsQuery.data.groups[0]
+                setGroup(firstGroup)
+                setSelectedGroupId(firstGroup.id)
+                setGroupName(firstGroup.name || '')
+                setFrequency(firstGroup.frequency ?? 2)
+                setQuietHoursStart(firstGroup.quietHoursStart ?? null)
+                setQuietHoursEnd(firstGroup.quietHoursEnd ?? null)
+                setVibeAverageHours(firstGroup.vibeAverageHours ?? 24)
+            } else {
+                setGroup(null)
+                setSelectedGroupId(null)
             }
+            
+            setDisplayName(settingsQuery.data.user.displayName || '')
             setLoading(false)
         }
     }, [settingsQuery.data])
@@ -227,7 +251,7 @@ function SettingsContent() {
     
     // Handle admin settings save
     const handleAdminSettingsSave = async (field: string, value: any) => {
-        if (!user.isGroupOwner || !group) return
+        if (!isOwnerOfSelectedGroup || !group) return
         
         setSaveStatus({ field, status: 'saving' })
         try {
@@ -244,6 +268,23 @@ function SettingsContent() {
             setSaveStatus(prev => prev.field === field ? { ...prev, status: 'idle' } : prev)
         }
     }
+    
+    // Handle switching the selected group in settings
+    const handleGroupSelect = (groupId: string) => {
+        const selectedGroup = allGroups.find(g => g.id === groupId)
+        if (selectedGroup) {
+            setSelectedGroupId(groupId)
+            setGroup(selectedGroup)
+            setGroupName(selectedGroup.name || '')
+            setFrequency(selectedGroup.frequency ?? 2)
+            setQuietHoursStart(selectedGroup.quietHoursStart ?? null)
+            setQuietHoursEnd(selectedGroup.quietHoursEnd ?? null)
+            setVibeAverageHours(selectedGroup.vibeAverageHours ?? 24)
+        }
+    }
+    
+    // Check if user is owner of the currently selected group
+    const isOwnerOfSelectedGroup = group?.ownerId === user?.id
 
 
     const handleCopyCode = () => {
@@ -255,7 +296,7 @@ function SettingsContent() {
     }
 
     const handleRemoveMember = async (memberId: string) => {
-        if (!user.isGroupOwner) return
+        if (!isOwnerOfSelectedGroup) return
 
         if (confirm('Are you sure you want to remove this member?')) {
             // Optimistic update
@@ -273,11 +314,29 @@ function SettingsContent() {
     }
 
     const handleLeaveGroup = async () => {
-        if (confirm('Are you sure you want to leave this group?')) {
+        if (!group) return
+        
+        const message = isOwnerOfSelectedGroup && group.members.length > 1
+            ? 'Are you sure you want to leave this group? Ownership will be transferred to another member.'
+            : isOwnerOfSelectedGroup
+            ? 'Are you sure you want to leave? The group will be deleted since you are the only member.'
+            : 'Are you sure you want to leave this group?'
+            
+        if (confirm(message)) {
             try {
-                await leaveGroupMutation.mutateAsync()
-                setGroup(null)
-                setActiveTab('profile')
+                await leaveGroupMutation.mutateAsync({ groupId: group.id })
+                // Remove the group from the list
+                const updatedGroups = allGroups.filter(g => g.id !== group.id)
+                setAllGroups(updatedGroups)
+                
+                if (updatedGroups.length > 0) {
+                    // Switch to another group
+                    handleGroupSelect(updatedGroups[0].id)
+                } else {
+                    setGroup(null)
+                    setSelectedGroupId(null)
+                }
+                settingsQuery.refetch()
             } catch (e) {
                 console.error(e)
                 alert("Failed to leave group")
@@ -287,7 +346,7 @@ function SettingsContent() {
 
     // Auto-Save Handler
     const handleAutoSave = async (field: string, value: string) => {
-        if (field === 'groupName' && !user.isGroupOwner) return
+        if (field === 'groupName' && !isOwnerOfSelectedGroup) return
 
         setSaveStatus({ field, status: 'saving' })
 
@@ -524,7 +583,7 @@ function SettingsContent() {
                 )}
 
                 {/* Group Content */}
-                {activeTab === 'group' && !group && (
+                {activeTab === 'group' && allGroups.length === 0 && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                         <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
                             <div>
@@ -563,6 +622,26 @@ function SettingsContent() {
 
                 {activeTab === 'group' && group && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                        {/* Group Selector - Only show if in multiple groups */}
+                        {allGroups.length > 1 && (
+                            <Card className="p-4 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800">
+                                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
+                                    Select Group
+                                </label>
+                                <select
+                                    value={selectedGroupId || ''}
+                                    onChange={(e) => handleGroupSelect(e.target.value)}
+                                    className="w-full h-12 px-4 bg-gray-50 dark:bg-gray-900 rounded-xl border-0 text-base font-medium focus:ring-2 focus:ring-primary/20"
+                                >
+                                    {allGroups.map((g) => (
+                                        <option key={g.id} value={g.id}>
+                                            {g.name} {g.ownerId === user?.id ? '(Owner)' : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            </Card>
+                        )}
+                        
                         <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
                             <h2 className="font-semibold text-gray-900 dark:text-white">Group Details</h2>
 
@@ -571,14 +650,14 @@ function SettingsContent() {
                                     <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
                                         Group Name
                                     </label>
-                                    {user.isGroupOwner && <StatusIndicator fieldName="groupName" />}
+                                    {isOwnerOfSelectedGroup && <StatusIndicator fieldName="groupName" />}
                                 </div>
                                 <Input
                                     value={groupName}
                                     onChange={(e) => setGroupName(e.target.value)}
                                     onBlur={() => handleAutoSave('groupName', groupName)}
-                                    disabled={!user.isGroupOwner}
-                                    className={`h-12 bg-gray-50 dark:bg-gray-900 border-transparent focus:bg-white transition-colors ${!user.isGroupOwner ? 'opacity-70' : ''}`}
+                                    disabled={!isOwnerOfSelectedGroup}
+                                    className={`h-12 bg-gray-50 dark:bg-gray-900 border-transparent focus:bg-white transition-colors ${!isOwnerOfSelectedGroup ? 'opacity-70' : ''}`}
                                 />
                             </div>
 
@@ -594,7 +673,7 @@ function SettingsContent() {
                                         <Button onClick={handleCopyCode} variant={copied ? "default" : "outline"} className="h-12 w-12 rounded-lg p-0 flex items-center justify-center">
                                             {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
                                         </Button>
-                                        {user.isGroupOwner && (
+                                        {isOwnerOfSelectedGroup && (
                                             <RegenerateButton group={group} onUpdate={(updatedGroup) => setGroup(updatedGroup)} />
                                         )}
                                     </div>
@@ -641,7 +720,7 @@ function SettingsContent() {
                                         </div>
 
                                         {/* Remove member logic: only if OWNER and removing OTHERS */}
-                                        {member.role !== 'owner' && user.isGroupOwner && (
+                                        {member.role !== 'owner' && isOwnerOfSelectedGroup && (
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
@@ -657,7 +736,7 @@ function SettingsContent() {
                         </Card>
 
                         {/* Admin Panel - Only visible to group owners */}
-                        {user.isGroupOwner && (
+                        {isOwnerOfSelectedGroup && (
                             <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
                                 <div className="flex items-center gap-2 mb-2">
                                     <Zap className="w-5 h-5 text-primary" />

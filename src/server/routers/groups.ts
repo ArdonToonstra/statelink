@@ -1,7 +1,7 @@
 import { z } from 'zod'
-import { eq, and, gt, sql } from 'drizzle-orm'
-import { createTRPCRouter, protectedProcedure, groupMemberProcedure } from '../trpc'
-import { groups, users, checkIns } from '@/db/schema'
+import { eq, and, gt, sql, inArray } from 'drizzle-orm'
+import { createTRPCRouter, protectedProcedure } from '../trpc'
+import { groups, users, checkIns, userGroups } from '@/db/schema'
 import { TRPCError } from '@trpc/server'
 
 // Helper to generate invite code
@@ -10,6 +10,54 @@ const generateInviteCode = (length: number = 8) => {
 }
 
 export const groupsRouter = createTRPCRouter({
+  // List all groups the current user is a member of
+  listUserGroups: protectedProcedure.query(async ({ ctx }) => {
+    const memberships = await ctx.db.query.userGroups.findMany({
+      where: eq(userGroups.userId, ctx.user.id),
+      with: {
+        group: true,
+      },
+    })
+    
+    return memberships.map(m => ({
+      id: m.group.id,
+      name: m.group.name,
+      role: m.role,
+      joinedAt: m.joinedAt,
+      isOwner: m.group.ownerId === ctx.user.id,
+    }))
+  }),
+
+  // Set the active group for the current user
+  setActiveGroup: protectedProcedure
+    .input(z.object({
+      groupId: z.string().nullable(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // If setting to a group, verify membership
+      if (input.groupId) {
+        const membership = await ctx.db.query.userGroups.findFirst({
+          where: and(
+            eq(userGroups.userId, ctx.user.id),
+            eq(userGroups.groupId, input.groupId)
+          ),
+        })
+        
+        if (!membership) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'You are not a member of this group',
+          })
+        }
+      }
+      
+      await ctx.db.update(users)
+        .set({ activeGroupId: input.groupId })
+        .where(eq(users.id, ctx.user.id))
+      
+      return { success: true }
+    }),
+
   // Create a new group
   create: protectedProcedure
     .input(z.object({
@@ -52,9 +100,16 @@ export const groupsRouter = createTRPCRouter({
         intervalMode: 'random',
       }).returning()
       
-      // Update user's groupId
+      // Add user to group via junction table as owner
+      await ctx.db.insert(userGroups).values({
+        userId: ctx.user.id,
+        groupId: group.id,
+        role: 'owner',
+      })
+      
+      // Set as active group
       await ctx.db.update(users)
-        .set({ groupId: group.id })
+        .set({ activeGroupId: group.id })
         .where(eq(users.id, ctx.user.id))
       
       return {
@@ -71,7 +126,6 @@ export const groupsRouter = createTRPCRouter({
   join: protectedProcedure
     .input(z.object({
       inviteCode: z.string().min(1),
-      migrationAction: z.enum(['merge', 'delete', 'keep']).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       // Find the group by invite code
@@ -105,43 +159,31 @@ export const groupsRouter = createTRPCRouter({
         })
       }
       
-      // Check for solo check-ins that need migration
-      const soloCheckIns = await ctx.db.query.checkIns.findMany({
+      // Check if already a member
+      const existingMembership = await ctx.db.query.userGroups.findFirst({
         where: and(
-          eq(checkIns.userId, ctx.user.id),
-          sql`${checkIns.groupId} IS NULL`
+          eq(userGroups.userId, ctx.user.id),
+          eq(userGroups.groupId, group.id)
         ),
-        limit: 1,
       })
       
-      if (soloCheckIns.length > 0 && !input.migrationAction) {
+      if (existingMembership) {
         throw new TRPCError({
           code: 'CONFLICT',
-          message: 'Existing data found',
-          cause: { confirmationRequired: true },
+          message: 'You are already a member of this group',
         })
       }
       
-      if (input.migrationAction === 'merge') {
-        // Update all solo check-ins to new groupId
-        await ctx.db.update(checkIns)
-          .set({ groupId: group.id })
-          .where(and(
-            eq(checkIns.userId, ctx.user.id),
-            sql`${checkIns.groupId} IS NULL`
-          ))
-      } else if (input.migrationAction === 'delete') {
-        // Delete all solo check-ins
-        await ctx.db.delete(checkIns)
-          .where(and(
-            eq(checkIns.userId, ctx.user.id),
-            sql`${checkIns.groupId} IS NULL`
-          ))
-      }
+      // Add user to group via junction table
+      await ctx.db.insert(userGroups).values({
+        userId: ctx.user.id,
+        groupId: group.id,
+        role: 'member',
+      })
       
-      // Update user's groupId
+      // Set as active group
       await ctx.db.update(users)
-        .set({ groupId: group.id })
+        .set({ activeGroupId: group.id })
         .where(eq(users.id, ctx.user.id))
       
       return {
@@ -153,8 +195,108 @@ export const groupsRouter = createTRPCRouter({
       }
     }),
 
+  // Leave a group
+  leave: protectedProcedure
+    .input(z.object({
+      groupId: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const group = await ctx.db.query.groups.findFirst({
+        where: eq(groups.id, input.groupId),
+      })
+      
+      if (!group) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Group not found',
+        })
+      }
+      
+      // Check membership
+      const membership = await ctx.db.query.userGroups.findFirst({
+        where: and(
+          eq(userGroups.userId, ctx.user.id),
+          eq(userGroups.groupId, input.groupId)
+        ),
+      })
+      
+      if (!membership) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'You are not a member of this group',
+        })
+      }
+      
+      // If user is owner, must transfer ownership first
+      if (group.ownerId === ctx.user.id) {
+        // Find another member to transfer ownership to
+        const otherMember = await ctx.db.query.userGroups.findFirst({
+          where: and(
+            eq(userGroups.groupId, input.groupId),
+            sql`${userGroups.userId} != ${ctx.user.id}`
+          ),
+        })
+        
+        if (otherMember) {
+          // Transfer ownership
+          await ctx.db.update(groups)
+            .set({ ownerId: otherMember.userId })
+            .where(eq(groups.id, input.groupId))
+          
+          // Update role in junction table
+          await ctx.db.update(userGroups)
+            .set({ role: 'owner' })
+            .where(and(
+              eq(userGroups.userId, otherMember.userId),
+              eq(userGroups.groupId, input.groupId)
+            ))
+        } else {
+          // No other members, delete the group
+          await ctx.db.delete(userGroups).where(eq(userGroups.groupId, input.groupId))
+          await ctx.db.delete(groups).where(eq(groups.id, input.groupId))
+          
+          // Clear active group if it was this group
+          const user = await ctx.db.query.users.findFirst({
+            where: eq(users.id, ctx.user.id),
+          })
+          if (user?.activeGroupId === input.groupId) {
+            await ctx.db.update(users)
+              .set({ activeGroupId: null })
+              .where(eq(users.id, ctx.user.id))
+          }
+          
+          return { success: true, groupDeleted: true }
+        }
+      }
+      
+      // Remove from junction table
+      await ctx.db.delete(userGroups)
+        .where(and(
+          eq(userGroups.userId, ctx.user.id),
+          eq(userGroups.groupId, input.groupId)
+        ))
+      
+      // If this was active group, switch to another group or null
+      const user = await ctx.db.query.users.findFirst({
+        where: eq(users.id, ctx.user.id),
+      })
+      
+      if (user?.activeGroupId === input.groupId) {
+        // Find another group
+        const anotherMembership = await ctx.db.query.userGroups.findFirst({
+          where: eq(userGroups.userId, ctx.user.id),
+        })
+        
+        await ctx.db.update(users)
+          .set({ activeGroupId: anotherMembership?.groupId ?? null })
+          .where(eq(users.id, ctx.user.id))
+      }
+      
+      return { success: true, groupDeleted: false }
+    }),
+
   // Regenerate invite code (owner only)
-  regenerateInviteCode: groupMemberProcedure
+  regenerateInviteCode: protectedProcedure
     .input(z.object({
       groupId: z.string(),
     }))
@@ -195,7 +337,7 @@ export const groupsRouter = createTRPCRouter({
     }),
 
   // Update group settings (owner only)
-  update: groupMemberProcedure
+  update: protectedProcedure
     .input(z.object({
       groupId: z.string(),
       name: z.string().min(1).optional(),
@@ -233,8 +375,69 @@ export const groupsRouter = createTRPCRouter({
       return { success: true }
     }),
 
+  // Get group details with members
+  getDetails: protectedProcedure
+    .input(z.object({
+      groupId: z.string(),
+    }))
+    .query(async ({ ctx, input }) => {
+      // Verify membership
+      const membership = await ctx.db.query.userGroups.findFirst({
+        where: and(
+          eq(userGroups.userId, ctx.user.id),
+          eq(userGroups.groupId, input.groupId)
+        ),
+      })
+      
+      if (!membership) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You are not a member of this group',
+        })
+      }
+      
+      const group = await ctx.db.query.groups.findFirst({
+        where: eq(groups.id, input.groupId),
+      })
+      
+      if (!group) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Group not found',
+        })
+      }
+      
+      // Get members via junction table
+      const memberships = await ctx.db.query.userGroups.findMany({
+        where: eq(userGroups.groupId, input.groupId),
+        with: {
+          user: true,
+        },
+      })
+      
+      return {
+        id: group.id,
+        name: group.name,
+        inviteCode: group.inviteCode,
+        inviteCodeCreated: group.inviteCodeCreated,
+        frequency: group.frequency,
+        intervalMode: group.intervalMode,
+        quietHoursStart: group.quietHoursStart,
+        quietHoursEnd: group.quietHoursEnd,
+        vibeAverageHours: group.vibeAverageHours,
+        ownerId: group.ownerId,
+        isOwner: group.ownerId === ctx.user.id,
+        members: memberships.map(m => ({
+          id: m.user.id,
+          name: m.user.displayName || m.user.name,
+          role: m.role,
+          isOwner: m.user.id === group.ownerId,
+        })),
+      }
+    }),
+
   // Remove a member (owner only)
-  removeMember: groupMemberProcedure
+  removeMember: protectedProcedure
     .input(z.object({
       groupId: z.string(),
       memberId: z.string(),
@@ -265,19 +468,80 @@ export const groupsRouter = createTRPCRouter({
         })
       }
       
-      // Remove user from group but keep their check-in data
-      // Set groupId to null on their check-ins so they keep their history
-      await ctx.db.update(checkIns)
-        .set({ groupId: null })
+      // Remove from junction table
+      await ctx.db.delete(userGroups)
         .where(and(
-          eq(checkIns.userId, input.memberId),
-          eq(checkIns.groupId, input.groupId)
+          eq(userGroups.userId, input.memberId),
+          eq(userGroups.groupId, input.groupId)
         ))
       
-      // Remove user from group
+      // Clear active group if it was this group
       await ctx.db.update(users)
-        .set({ groupId: null })
+        .set({ activeGroupId: sql`CASE WHEN ${users.activeGroupId} = ${input.groupId} THEN NULL ELSE ${users.activeGroupId} END` })
         .where(eq(users.id, input.memberId))
+      
+      return { success: true }
+    }),
+
+  // Transfer ownership (owner only)
+  transferOwnership: protectedProcedure
+    .input(z.object({
+      groupId: z.string(),
+      newOwnerId: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const group = await ctx.db.query.groups.findFirst({
+        where: eq(groups.id, input.groupId),
+      })
+      
+      if (!group) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Group not found',
+        })
+      }
+      
+      if (group.ownerId !== ctx.user.id) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only the group owner can transfer ownership',
+        })
+      }
+      
+      // Verify new owner is a member
+      const newOwnerMembership = await ctx.db.query.userGroups.findFirst({
+        where: and(
+          eq(userGroups.userId, input.newOwnerId),
+          eq(userGroups.groupId, input.groupId)
+        ),
+      })
+      
+      if (!newOwnerMembership) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'New owner must be a member of the group',
+        })
+      }
+      
+      // Update group owner
+      await ctx.db.update(groups)
+        .set({ ownerId: input.newOwnerId })
+        .where(eq(groups.id, input.groupId))
+      
+      // Update roles in junction table
+      await ctx.db.update(userGroups)
+        .set({ role: 'member' })
+        .where(and(
+          eq(userGroups.userId, ctx.user.id),
+          eq(userGroups.groupId, input.groupId)
+        ))
+      
+      await ctx.db.update(userGroups)
+        .set({ role: 'owner' })
+        .where(and(
+          eq(userGroups.userId, input.newOwnerId),
+          eq(userGroups.groupId, input.groupId)
+        ))
       
       return { success: true }
     }),

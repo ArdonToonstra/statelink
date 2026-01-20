@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { eq, count } from 'drizzle-orm'
-import { createTRPCRouter, protectedProcedure, groupMemberProcedure } from '../trpc'
-import { users, groups, checkIns } from '@/db/schema'
+import { createTRPCRouter, protectedProcedure } from '../trpc'
+import { users, groups, checkIns, userGroups } from '@/db/schema'
 import { TRPCError } from '@trpc/server'
 
 export const settingsRouter = createTRPCRouter({
@@ -10,7 +10,12 @@ export const settingsRouter = createTRPCRouter({
     const user = await ctx.db.query.users.findFirst({
       where: eq(users.id, ctx.user.id),
       with: {
-        group: true,
+        activeGroup: true,
+        userGroups: {
+          with: {
+            group: true,
+          },
+        },
       },
     })
     
@@ -21,31 +26,38 @@ export const settingsRouter = createTRPCRouter({
       })
     }
     
-    let group = null
-    
-    if (user.groupId && user.group) {
-      // Get members
-      const members = await ctx.db.query.users.findMany({
-        where: eq(users.groupId, user.groupId),
+    // Build list of all user's groups
+    const allGroups = await Promise.all(user.userGroups.map(async (ug) => {
+      // Get members for each group via junction table
+      const memberships = await ctx.db.query.userGroups.findMany({
+        where: eq(userGroups.groupId, ug.group.id),
+        with: {
+          user: true,
+        },
       })
       
-      group = {
-        id: user.group.id,
-        name: user.group.name,
-        inviteCode: user.group.inviteCode,
-        inviteCodeCreated: user.group.inviteCodeCreated,
-        frequency: user.group.frequency,
-        intervalMode: user.group.intervalMode,
-        quietHoursStart: user.group.quietHoursStart,
-        quietHoursEnd: user.group.quietHoursEnd,
-        vibeAverageHours: user.group.vibeAverageHours,
-        members: members.map(m => ({
-          id: m.id,
-          name: m.displayName,
-          role: m.id === user.group!.ownerId ? 'owner' : 'member',
+      return {
+        id: ug.group.id,
+        name: ug.group.name,
+        inviteCode: ug.group.inviteCode,
+        inviteCodeCreated: ug.group.inviteCodeCreated,
+        frequency: ug.group.frequency,
+        intervalMode: ug.group.intervalMode,
+        quietHoursStart: ug.group.quietHoursStart,
+        quietHoursEnd: ug.group.quietHoursEnd,
+        vibeAverageHours: ug.group.vibeAverageHours,
+        ownerId: ug.group.ownerId,
+        isOwner: ug.group.ownerId === user.id,
+        members: memberships.map(m => ({
+          id: m.user.id,
+          name: m.user.displayName || m.user.name,
+          role: m.role,
         })),
       }
-    }
+    }))
+    
+    // Get the active group details (for backwards compatibility)
+    const activeGroup = allGroups.find(g => g.id === user.activeGroupId) ?? null
     
     // Get user's check-ins
     const userCheckIns = await ctx.db.query.checkIns.findMany({
@@ -58,9 +70,10 @@ export const settingsRouter = createTRPCRouter({
         id: user.id,
         displayName: user.displayName,
         email: user.email,
-        isGroupOwner: group ? user.group?.ownerId === user.id : false,
+        activeGroupId: user.activeGroupId,
       },
-      group,
+      group: activeGroup, // For backwards compatibility
+      groups: allGroups, // All groups user is member of
       checkins: userCheckIns,
     }
   }),

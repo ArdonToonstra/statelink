@@ -1,8 +1,9 @@
-import { pgTable, serial, text, integer, boolean, timestamp, varchar, pgEnum } from 'drizzle-orm/pg-core'
+import { pgTable, serial, text, integer, boolean, timestamp, varchar, pgEnum, uniqueIndex } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
 
 // Enums
 export const intervalModeEnum = pgEnum('interval_mode', ['random', 'fixed'])
+export const groupRoleEnum = pgEnum('group_role', ['owner', 'member'])
 
 // ============================================
 // Better Auth required tables
@@ -18,7 +19,8 @@ export const users = pgTable('user', {
   
   // App-specific fields
   displayName: text('display_name'),
-  groupId: text('group_id').references(() => groups.id),
+  groupId: text('group_id').references(() => groups.id), // DEPRECATED: kept for migration, use userGroups
+  activeGroupId: text('active_group_id').references(() => groups.id), // Currently focused group
   timezone: text('timezone').default('UTC'), // User's timezone for quiet hours calculation
   customActivityIds: text('custom_activity_ids').array(), // User's selected activity tag IDs
 })
@@ -80,6 +82,19 @@ export const groups = pgTable('groups', {
 })
 
 // ============================================
+// User-Groups junction table (many-to-many)
+// ============================================
+export const userGroups = pgTable('user_groups', {
+  id: serial('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  groupId: text('group_id').notNull().references(() => groups.id, { onDelete: 'cascade' }),
+  role: groupRoleEnum('role').notNull().default('member'), // 'owner' or 'member'
+  joinedAt: timestamp('joined_at').notNull().defaultNow(),
+}, (table) => ({
+  userGroupUnique: uniqueIndex('user_group_unique_idx').on(table.userId, table.groupId),
+}))
+
+// ============================================
 // Check-ins table
 // ============================================
 export const checkIns = pgTable('check_ins', {
@@ -111,10 +126,18 @@ export const pushSubscriptions = pgTable('push_subscriptions', {
 // Relations
 // ============================================
 export const usersRelations = relations(users, ({ one, many }) => ({
+  // Legacy single group relation (deprecated, use userGroups)
   group: one(groups, {
     fields: [users.groupId],
     references: [groups.id],
   }),
+  // Active group relation
+  activeGroup: one(groups, {
+    fields: [users.activeGroupId],
+    references: [groups.id],
+  }),
+  // Many-to-many through userGroups
+  userGroups: many(userGroups),
   checkIns: many(checkIns),
   pushSubscriptions: many(pushSubscriptions),
 }))
@@ -124,8 +147,20 @@ export const groupsRelations = relations(groups, ({ one, many }) => ({
     fields: [groups.ownerId],
     references: [users.id],
   }),
-  members: many(users),
+  // Many-to-many through userGroups
+  userGroups: many(userGroups),
   checkIns: many(checkIns),
+}))
+
+export const userGroupsRelations = relations(userGroups, ({ one }) => ({
+  user: one(users, {
+    fields: [userGroups.userId],
+    references: [users.id],
+  }),
+  group: one(groups, {
+    fields: [userGroups.groupId],
+    references: [groups.id],
+  }),
 }))
 
 export const checkInsRelations = relations(checkIns, ({ one }) => ({
@@ -157,6 +192,8 @@ export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 export type Group = typeof groups.$inferSelect
 export type NewGroup = typeof groups.$inferInsert
+export type UserGroup = typeof userGroups.$inferSelect
+export type NewUserGroup = typeof userGroups.$inferInsert
 export type CheckIn = typeof checkIns.$inferSelect
 export type NewCheckIn = typeof checkIns.$inferInsert
 export type PushSubscription = typeof pushSubscriptions.$inferSelect
