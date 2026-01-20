@@ -32,8 +32,9 @@ export const dashboardRouter = createTRPCRouter({
     
     let groupPulse: string | null = null
     let memberCount = 0
-    let groupName = 'No Group'
+    let groupName = 'Solo Mode'
     let vibeAverageHours = 24
+    let activeGroupId = user.activeGroupId
     
     // Get all user's groups for the switcher
     const userGroupsList = user.userGroups.map(ug => ({
@@ -43,20 +44,34 @@ export const dashboardRouter = createTRPCRouter({
       isOwner: ug.group.ownerId === user.id,
     }))
     
-    if (user.activeGroupId && user.activeGroup) {
-      groupName = user.activeGroup.name
-      vibeAverageHours = user.activeGroup.vibeAverageHours ?? 24
+    // If user has no active group but has groups, auto-select the first one
+    if (!activeGroupId && userGroupsList.length > 0) {
+      activeGroupId = userGroupsList[0].id
+      // Update the database to persist this choice
+      await ctx.db.update(users)
+        .set({ activeGroupId })
+        .where(eq(users.id, ctx.user.id))
+    }
+    
+    // Get the active group data
+    const activeGroup = activeGroupId 
+      ? user.userGroups.find(ug => ug.group.id === activeGroupId)?.group 
+      : null
+    
+    if (activeGroupId && activeGroup) {
+      groupName = activeGroup.name
+      vibeAverageHours = activeGroup.vibeAverageHours ?? 24
       
       // Get member count via junction table
       const memberships = await ctx.db
         .select({ count: count() })
         .from(userGroups)
-        .where(eq(userGroups.groupId, user.activeGroupId))
+        .where(eq(userGroups.groupId, activeGroupId))
       memberCount = memberships[0]?.count ?? 0
       
       // Get all member IDs for this group
       const groupMemberships = await ctx.db.query.userGroups.findMany({
-        where: eq(userGroups.groupId, user.activeGroupId),
+        where: eq(userGroups.groupId, activeGroupId),
       })
       const memberIds = groupMemberships.map(m => m.userId)
       
@@ -91,7 +106,7 @@ export const dashboardRouter = createTRPCRouter({
       userLastVibe: userLastCheckIn ?? null,
       groupName,
       vibeAverageHours,
-      activeGroupId: user.activeGroupId,
+      activeGroupId,
       groups: userGroupsList,
     }
   }),
