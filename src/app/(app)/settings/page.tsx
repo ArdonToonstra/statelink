@@ -735,115 +735,125 @@ function SettingsContent() {
                             </div>
                         </Card>
 
-                        {/* Admin Panel - Only visible to group owners */}
-                        {isOwnerOfSelectedGroup && (
-                            <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
-                                <div className="flex items-center gap-2 mb-2">
+                        {/* Group Settings - Visible to all, editable by owners */}
+                        <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
                                     <Zap className="w-5 h-5 text-primary" />
                                     <h2 className="font-semibold text-gray-900 dark:text-white">Ping Settings</h2>
                                 </div>
-                                
-                                <div>
-                                    <div className="flex justify-between items-center mb-2">
-                                        <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
-                                            Pings per Week
-                                        </label>
-                                        <StatusIndicator fieldName="frequency" />
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <input
-                                            type="range"
-                                            min="1"
-                                            max="7"
-                                            value={frequency}
-                                            onChange={(e) => setFrequency(parseInt(e.target.value))}
-                                            onMouseUp={() => handleAdminSettingsSave('frequency', frequency)}
-                                            onTouchEnd={() => handleAdminSettingsSave('frequency', frequency)}
-                                            className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-primary"
-                                        />
-                                        <span className="text-lg font-bold text-primary w-8 text-center">{frequency}</span>
-                                    </div>
-                                    <p className="text-xs text-gray-500 mt-1">How often members get pinged for check-ins</p>
+                                {!isOwnerOfSelectedGroup && (
+                                    <span className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full">View only</span>
+                                )}
+                            </div>
+                            
+                            <div className={!isOwnerOfSelectedGroup ? 'opacity-60 pointer-events-none' : ''}>
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
+                                        Pings per Week
+                                    </label>
+                                    {isOwnerOfSelectedGroup && <StatusIndicator fieldName="frequency" />}
                                 </div>
-                                
-                                <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
-                                            Group Pulse Time Window
-                                        </label>
-                                        <StatusIndicator fieldName="vibeAverageHours" />
-                                    </div>
-                                    <select
-                                        value={vibeAverageHours}
-                                        onChange={(e) => {
-                                            const val = parseInt(e.target.value)
-                                            setVibeAverageHours(val)
-                                            handleAdminSettingsSave('vibeAverageHours', val)
-                                        }}
-                                        className="w-full h-10 px-3 bg-gray-50 dark:bg-gray-900 rounded-lg border-0 text-sm"
-                                    >
-                                        <option value={6}>Last 6 hours</option>
-                                        <option value={12}>Last 12 hours</option>
-                                        <option value={24}>Last 24 hours</option>
-                                        <option value={48}>Last 2 days</option>
-                                        <option value={72}>Last 3 days</option>
-                                        <option value={168}>Last 7 days</option>
-                                    </select>
-                                    <p className="text-xs text-gray-500 mt-1">Time window for calculating the group vibe average</p>
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="range"
+                                        min="1"
+                                        max="7"
+                                        value={frequency}
+                                        onChange={(e) => isOwnerOfSelectedGroup && setFrequency(parseInt(e.target.value))}
+                                        onMouseUp={() => isOwnerOfSelectedGroup && handleAdminSettingsSave('frequency', frequency)}
+                                        onTouchEnd={() => isOwnerOfSelectedGroup && handleAdminSettingsSave('frequency', frequency)}
+                                        disabled={!isOwnerOfSelectedGroup}
+                                        className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-primary disabled:cursor-not-allowed"
+                                    />
+                                    <span className="text-lg font-bold text-primary w-8 text-center">{frequency}</span>
                                 </div>
+                                <p className="text-xs text-gray-500 mt-1">How often members get pinged for check-ins</p>
+                            </div>
                                 
-                                <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <Clock className="w-4 h-4 text-gray-500" />
-                                        <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
-                                            Quiet Hours
-                                        </label>
-                                        <StatusIndicator fieldName="quietHours" />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="text-xs text-gray-500 mb-1 block">Start</label>
-                                            <select
-                                                value={quietHoursStart ?? ''}
-                                                onChange={(e) => {
-                                                    const val = e.target.value === '' ? null : parseInt(e.target.value)
-                                                    setQuietHoursStart(val)
-                                                    handleAdminSettingsSave('quietHoursStart', val)
-                                                }}
-                                                className="w-full h-10 px-3 bg-gray-50 dark:bg-gray-900 rounded-lg border-0 text-sm"
-                                            >
-                                                <option value="">Off</option>
-                                                {Array.from({ length: 24 }, (_, i) => (
-                                                    <option key={i} value={i}>
-                                                        {i.toString().padStart(2, '0')}:00
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="text-xs text-gray-500 mb-1 block">End</label>
-                                            <select
-                                                value={quietHoursEnd ?? ''}
-                                                onChange={(e) => {
-                                                    const val = e.target.value === '' ? null : parseInt(e.target.value)
-                                                    setQuietHoursEnd(val)
-                                                    handleAdminSettingsSave('quietHoursEnd', val)
-                                                }}
-                                                className="w-full h-10 px-3 bg-gray-50 dark:bg-gray-900 rounded-lg border-0 text-sm"
-                                            >
-                                                <option value="">Off</option>
-                                                {Array.from({ length: 24 }, (_, i) => (
-                                                    <option key={i} value={i}>
-                                                        {i.toString().padStart(2, '0')}:00
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <p className="text-xs text-gray-500 mt-2">No pings will be sent during quiet hours</p>
+                            <div className={`pt-2 border-t border-gray-100 dark:border-gray-700 ${!isOwnerOfSelectedGroup ? 'opacity-60 pointer-events-none' : ''}`}>
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
+                                        Group Pulse Time Window
+                                    </label>
+                                    {isOwnerOfSelectedGroup && <StatusIndicator fieldName="vibeAverageHours" />}
                                 </div>
-                            </Card>
-                        )}
+                                <select
+                                    value={vibeAverageHours}
+                                    onChange={(e) => {
+                                        if (!isOwnerOfSelectedGroup) return
+                                        const val = parseInt(e.target.value)
+                                        setVibeAverageHours(val)
+                                        handleAdminSettingsSave('vibeAverageHours', val)
+                                    }}
+                                    disabled={!isOwnerOfSelectedGroup}
+                                    className="w-full h-10 px-3 bg-gray-50 dark:bg-gray-900 rounded-lg border-0 text-sm disabled:cursor-not-allowed"
+                                >
+                                    <option value={6}>Last 6 hours</option>
+                                    <option value={12}>Last 12 hours</option>
+                                    <option value={24}>Last 24 hours</option>
+                                    <option value={48}>Last 2 days</option>
+                                    <option value={72}>Last 3 days</option>
+                                    <option value={168}>Last 7 days</option>
+                                </select>
+                                <p className="text-xs text-gray-500 mt-1">Time window for calculating the group vibe average</p>
+                            </div>
+                                
+                            <div className={`pt-2 border-t border-gray-100 dark:border-gray-700 ${!isOwnerOfSelectedGroup ? 'opacity-60 pointer-events-none' : ''}`}>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Clock className="w-4 h-4 text-gray-500" />
+                                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
+                                        Quiet Hours
+                                    </label>
+                                    {isOwnerOfSelectedGroup && <StatusIndicator fieldName="quietHours" />}
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-xs text-gray-500 mb-1 block">Start</label>
+                                        <select
+                                            value={quietHoursStart ?? ''}
+                                            onChange={(e) => {
+                                                if (!isOwnerOfSelectedGroup) return
+                                                const val = e.target.value === '' ? null : parseInt(e.target.value)
+                                                setQuietHoursStart(val)
+                                                handleAdminSettingsSave('quietHoursStart', val)
+                                            }}
+                                            disabled={!isOwnerOfSelectedGroup}
+                                            className="w-full h-10 px-3 bg-gray-50 dark:bg-gray-900 rounded-lg border-0 text-sm disabled:cursor-not-allowed"
+                                        >
+                                            <option value="">Off</option>
+                                            {Array.from({ length: 24 }, (_, i) => (
+                                                <option key={i} value={i}>
+                                                    {i.toString().padStart(2, '0')}:00
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-500 mb-1 block">End</label>
+                                        <select
+                                            value={quietHoursEnd ?? ''}
+                                            onChange={(e) => {
+                                                if (!isOwnerOfSelectedGroup) return
+                                                const val = e.target.value === '' ? null : parseInt(e.target.value)
+                                                setQuietHoursEnd(val)
+                                                handleAdminSettingsSave('quietHoursEnd', val)
+                                            }}
+                                            disabled={!isOwnerOfSelectedGroup}
+                                            className="w-full h-10 px-3 bg-gray-50 dark:bg-gray-900 rounded-lg border-0 text-sm disabled:cursor-not-allowed"
+                                        >
+                                            <option value="">Off</option>
+                                            {Array.from({ length: 24 }, (_, i) => (
+                                                <option key={i} value={i}>
+                                                    {i.toString().padStart(2, '0')}:00
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-2">No pings will be sent during quiet hours</p>
+                            </div>
+                        </Card>
 
                         <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
                             <h2 className="font-semibold text-gray-900 dark:text-white">Group Actions</h2>

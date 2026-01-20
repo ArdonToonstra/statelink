@@ -156,27 +156,11 @@ export default function DashboardPage() {
             
             {/* Group Switcher Dropdown */}
             {showGroupDropdown && (
-              <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 backdrop-blur-none">
+              <div className="absolute top-full left-0 mt-2 w-64 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 bg-white dark:bg-gray-800">
                 <div className="p-2 bg-white dark:bg-gray-800">
-                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 py-2 bg-white dark:bg-gray-800">
+                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 py-2">
                     Your Groups
                   </div>
-                  
-                  {/* Solo mode option */}
-                  <button
-                    onClick={() => handleGroupSwitch(null)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                      !data.activeGroupId 
-                        ? 'bg-primary/10 text-primary' 
-                        : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200'
-                    }`}
-                  >
-                    <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                      <Users className="w-4 h-4 text-gray-500" />
-                    </div>
-                    <span className="font-medium flex-1 text-left">Solo Mode</span>
-                    {!data.activeGroupId && <Check className="w-4 h-4" />}
-                  </button>
                   
                   {/* Group list */}
                   {data.groups?.map((group) => (
