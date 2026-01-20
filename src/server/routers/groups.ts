@@ -201,8 +201,9 @@ export const groupsRouter = createTRPCRouter({
       name: z.string().min(1).optional(),
       frequency: z.number().min(1).max(10).optional(),
       intervalMode: z.enum(['random', 'fixed']).optional(),
-      quietHoursStart: z.number().min(0).max(23).optional(),
-      quietHoursEnd: z.number().min(0).max(23).optional(),
+      quietHoursStart: z.number().min(0).max(23).optional().nullable(),
+      quietHoursEnd: z.number().min(0).max(23).optional().nullable(),
+      vibeAverageHours: z.number().min(1).max(168).optional(), // 1 hour to 1 week
     }))
     .mutation(async ({ ctx, input }) => {
       const group = await ctx.db.query.groups.findFirst({
@@ -264,6 +265,16 @@ export const groupsRouter = createTRPCRouter({
         })
       }
       
+      // Remove user from group but keep their check-in data
+      // Set groupId to null on their check-ins so they keep their history
+      await ctx.db.update(checkIns)
+        .set({ groupId: null })
+        .where(and(
+          eq(checkIns.userId, input.memberId),
+          eq(checkIns.groupId, input.groupId)
+        ))
+      
+      // Remove user from group
       await ctx.db.update(users)
         .set({ groupId: null })
         .where(eq(users.id, input.memberId))

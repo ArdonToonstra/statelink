@@ -28,6 +28,7 @@ export const usersRouter = createTRPCRouter({
   updateProfile: protectedProcedure
     .input(z.object({
       displayName: z.string().min(1).optional(),
+      customActivityIds: z.array(z.string()).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.update(users)
@@ -36,6 +37,20 @@ export const usersRouter = createTRPCRouter({
       
       return { success: true }
     }),
+
+  // Get user preferences (for check-in page)
+  getPreferences: protectedProcedure.query(async ({ ctx }) => {
+    const user = await ctx.db.query.users.findFirst({
+      where: eq(users.id, ctx.user.id),
+      columns: {
+        customActivityIds: true,
+      },
+    })
+    
+    return {
+      customActivityIds: user?.customActivityIds ?? null,
+    }
+  }),
 
   // Leave current group
   leaveGroup: protectedProcedure.mutation(async ({ ctx }) => {

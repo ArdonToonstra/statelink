@@ -38,6 +38,7 @@ export const settingsRouter = createTRPCRouter({
         intervalMode: user.group.intervalMode,
         quietHoursStart: user.group.quietHoursStart,
         quietHoursEnd: user.group.quietHoursEnd,
+        vibeAverageHours: user.group.vibeAverageHours,
         members: members.map(m => ({
           id: m.id,
           name: m.displayName,

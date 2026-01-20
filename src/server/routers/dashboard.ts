@@ -19,15 +19,18 @@ export const dashboardRouter = createTRPCRouter({
         memberCount: 0,
         userLastVibe: null,
         groupName: 'No Group',
+        vibeAverageHours: 24,
       }
     }
     
     let groupPulse: string | null = null
     let memberCount = 0
     let groupName = 'No Group'
+    let vibeAverageHours = 24
     
     if (user.groupId && user.group) {
       groupName = user.group.name
+      vibeAverageHours = user.group.vibeAverageHours ?? 24
       
       // Get member count
       const members = await ctx.db
@@ -36,13 +39,13 @@ export const dashboardRouter = createTRPCRouter({
         .where(eq(users.groupId, user.groupId))
       memberCount = members[0]?.count ?? 0
       
-      // Calculate group pulse (avg of last 24h)
-      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
+      // Calculate group pulse using configurable time window
+      const timeWindowStart = new Date(Date.now() - vibeAverageHours * 60 * 60 * 1000)
       
       const recentCheckIns = await ctx.db.query.checkIns.findMany({
         where: and(
           eq(checkIns.groupId, user.groupId),
-          gt(checkIns.createdAt, yesterday)
+          gt(checkIns.createdAt, timeWindowStart)
         ),
         limit: 100,
       })
@@ -64,6 +67,7 @@ export const dashboardRouter = createTRPCRouter({
       memberCount,
       userLastVibe: userLastCheckIn ?? null,
       groupName,
+      vibeAverageHours,
     }
   }),
 })

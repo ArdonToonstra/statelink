@@ -136,6 +136,7 @@ function SettingsContent() {
     const [frequency, setFrequency] = useState(2)
     const [quietHoursStart, setQuietHoursStart] = useState<number | null>(null)
     const [quietHoursEnd, setQuietHoursEnd] = useState<number | null>(null)
+    const [vibeAverageHours, setVibeAverageHours] = useState(24)
 
     const [copied, setCopied] = useState(false)
     const [saveStatus, setSaveStatus] = useState<{ field: string, status: 'saving' | 'saved' | 'idle' }>({ field: '', status: 'idle' })
@@ -170,6 +171,7 @@ function SettingsContent() {
                 setFrequency(settingsQuery.data.group.frequency ?? 2)
                 setQuietHoursStart(settingsQuery.data.group.quietHoursStart ?? null)
                 setQuietHoursEnd(settingsQuery.data.group.quietHoursEnd ?? null)
+                setVibeAverageHours(settingsQuery.data.group.vibeAverageHours ?? 24)
             }
             setLoading(false)
         }
@@ -683,6 +685,32 @@ function SettingsContent() {
                                         <span className="text-lg font-bold text-primary w-8 text-center">{frequency}</span>
                                     </div>
                                     <p className="text-xs text-gray-500 mt-1">How often members get pinged for check-ins</p>
+                                </div>
+                                
+                                <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
+                                            Group Pulse Time Window
+                                        </label>
+                                        <StatusIndicator fieldName="vibeAverageHours" />
+                                    </div>
+                                    <select
+                                        value={vibeAverageHours}
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value)
+                                            setVibeAverageHours(val)
+                                            handleAdminSettingsSave('vibeAverageHours', val)
+                                        }}
+                                        className="w-full h-10 px-3 bg-gray-50 dark:bg-gray-900 rounded-lg border-0 text-sm"
+                                    >
+                                        <option value={6}>Last 6 hours</option>
+                                        <option value={12}>Last 12 hours</option>
+                                        <option value={24}>Last 24 hours</option>
+                                        <option value={48}>Last 2 days</option>
+                                        <option value={72}>Last 3 days</option>
+                                        <option value={168}>Last 7 days</option>
+                                    </select>
+                                    <p className="text-xs text-gray-500 mt-1">Time window for calculating the group vibe average</p>
                                 </div>
                                 
                                 <div className="pt-2 border-t border-gray-100 dark:border-gray-700">

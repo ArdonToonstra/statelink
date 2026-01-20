@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -91,6 +91,24 @@ export default function CheckInPage() {
   const [isEditing, setIsEditing] = useState(false)
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false)
+
+  // Load user preferences for activity tags
+  const preferencesQuery = trpc.users.getPreferences.useQuery(undefined, {
+    retry: false,
+  })
+  
+  const updateProfileMutation = trpc.users.updateProfile.useMutation()
+
+  // Initialize activity IDs from user preferences
+  useEffect(() => {
+    if (preferencesQuery.data && !preferencesLoaded) {
+      if (preferencesQuery.data.customActivityIds && preferencesQuery.data.customActivityIds.length > 0) {
+        setMyActivityIds(preferencesQuery.data.customActivityIds)
+      }
+      setPreferencesLoaded(true)
+    }
+  }, [preferencesQuery.data, preferencesLoaded])
 
   const handleVibeSelect = (value: number) => {
     setVibe(value)
@@ -150,7 +168,10 @@ export default function CheckInPage() {
         <div className="absolute inset-0 z-50 bg-white dark:bg-gray-900 flex flex-col animate-in slide-in-from-bottom duration-300">
           <div className="p-4 flex justify-between items-center border-b">
             <h2 className="text-xl font-bold">Customize Activities</h2>
-            <Button variant="ghost" size="icon" onClick={() => setIsEditing(false)}>
+            <Button variant="ghost" size="icon" onClick={() => {
+              setIsEditing(false)
+              updateProfileMutation.mutate({ customActivityIds: myActivityIds })
+            }}>
               <X className="w-6 h-6" />
             </Button>
           </div>
@@ -184,7 +205,11 @@ export default function CheckInPage() {
             </div>
           </div>
           <div className="p-4 border-t bg-white dark:bg-gray-900">
-            <Button onClick={() => setIsEditing(false)} className="w-full h-12 text-lg">
+            <Button onClick={() => {
+              setIsEditing(false)
+              // Save user's activity preferences
+              updateProfileMutation.mutate({ customActivityIds: myActivityIds })
+            }} className="w-full h-12 text-lg">
               Done
             </Button>
           </div>
