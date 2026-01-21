@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
         name: 'Statelink',
         short_name: 'Statelink',
         description: 'A group vibe check app',
-        start_url: '/',
+        start_url: '/dashboard',
         display: 'standalone',
         background_color: '#ffffff',
         theme_color: '#10b981',

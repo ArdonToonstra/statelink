@@ -18,19 +18,19 @@ async function subscribeToPush(): Promise<PushSubscription | null> {
         alert('Push notifications are not supported in your browser')
         return null
     }
-    
+
     const permission = await Notification.requestPermission()
     if (permission !== 'granted') {
         alert('Notification permission denied')
         return null
     }
-    
+
     const registration = await navigator.serviceWorker.ready
     const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
     })
-    
+
     return subscription
 }
 
@@ -111,6 +111,71 @@ function RegenerateButton({ group, onUpdate }: { group: any, onUpdate: (g: any) 
     )
 }
 
+// Sub-component for test push notification button
+function TestPushButton() {
+    const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle')
+    const [errorMessage, setErrorMessage] = useState('')
+    const sendTestMutation = trpc.push.sendTest.useMutation()
+
+    const handleSendTest = async () => {
+        setStatus('sending')
+        setErrorMessage('')
+        try {
+            const result = await sendTestMutation.mutateAsync()
+            if (result.success) {
+                setStatus('success')
+                setTimeout(() => setStatus('idle'), 3000)
+            } else {
+                setStatus('error')
+                setErrorMessage(result.error || 'Failed to send test notification')
+                setTimeout(() => setStatus('idle'), 5000)
+            }
+        } catch (e: any) {
+            setStatus('error')
+            setErrorMessage(e.message || 'Failed to send test notification')
+            setTimeout(() => setStatus('idle'), 5000)
+        }
+    }
+
+    return (
+        <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
+            <Button
+                variant="outline"
+                onClick={handleSendTest}
+                disabled={status === 'sending'}
+                className={`w-full h-12 rounded-xl justify-center gap-2 transition-all ${status === 'success'
+                        ? 'bg-green-50 border-green-200 text-green-600 hover:bg-green-100'
+                        : status === 'error'
+                            ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100'
+                            : 'bg-gray-50 border-0 hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-700'
+                    }`}
+            >
+                {status === 'sending' ? (
+                    <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Sending...
+                    </>
+                ) : status === 'success' ? (
+                    <>
+                        <Check className="w-4 h-4" />
+                        Notification Sent!
+                    </>
+                ) : status === 'error' ? (
+                    <>
+                        <AlertCircle className="w-4 h-4" />
+                        {errorMessage}
+                    </>
+                ) : (
+                    <>
+                        <Bell className="w-4 h-4" />
+                        Send Test Notification
+                    </>
+                )}
+            </Button>
+        </div>
+    )
+}
+
 function SettingsContent() {
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -129,11 +194,11 @@ function SettingsContent() {
     // Form State
     const [displayName, setDisplayName] = useState('')
     const [groupName, setGroupName] = useState('')
-    
+
     // Push notification state
     const [pushEnabled, setPushEnabled] = useState(false)
     const [pushLoading, setPushLoading] = useState(true)
-    
+
     // Admin settings state
     const [frequency, setFrequency] = useState(2)
     const [quietHoursStart, setQuietHoursStart] = useState<number | null>(null)
@@ -168,7 +233,7 @@ function SettingsContent() {
         if (settingsQuery.data) {
             setUser(settingsQuery.data.user)
             setAllGroups(settingsQuery.data.groups || [])
-            
+
             // Set the active group as the initially selected one
             const activeGroup = settingsQuery.data.groups?.find(
                 (g: any) => g.id === settingsQuery.data.user.activeGroupId
@@ -195,12 +260,12 @@ function SettingsContent() {
                 setGroup(null)
                 setSelectedGroupId(null)
             }
-            
+
             setDisplayName(settingsQuery.data.user.displayName || '')
             setLoading(false)
         }
     }, [settingsQuery.data])
-    
+
     // Check push notification status on mount
     useEffect(() => {
         const checkPushStatus = async () => {
@@ -215,7 +280,7 @@ function SettingsContent() {
         }
         checkPushStatus()
     }, [])
-    
+
     // Handle push notification toggle
     const handlePushToggle = async () => {
         setPushLoading(true)
@@ -248,11 +313,11 @@ function SettingsContent() {
             setPushLoading(false)
         }
     }
-    
+
     // Handle admin settings save
     const handleAdminSettingsSave = async (field: string, value: any) => {
         if (!isOwnerOfSelectedGroup || !group) return
-        
+
         setSaveStatus({ field, status: 'saving' })
         try {
             await updateGroupMutation.mutateAsync({
@@ -268,7 +333,7 @@ function SettingsContent() {
             setSaveStatus(prev => prev.field === field ? { ...prev, status: 'idle' } : prev)
         }
     }
-    
+
     // Handle switching the selected group in settings
     const handleGroupSelect = (groupId: string) => {
         const selectedGroup = allGroups.find(g => g.id === groupId)
@@ -282,7 +347,7 @@ function SettingsContent() {
             setVibeAverageHours(selectedGroup.vibeAverageHours ?? 24)
         }
     }
-    
+
     // Check if user is owner of the currently selected group
     const isOwnerOfSelectedGroup = group?.ownerId === user?.id
 
@@ -315,20 +380,20 @@ function SettingsContent() {
 
     const handleLeaveGroup = async () => {
         if (!group) return
-        
+
         const message = isOwnerOfSelectedGroup && group.members.length > 1
             ? 'Are you sure you want to leave this group? Ownership will be transferred to another member.'
             : isOwnerOfSelectedGroup
-            ? 'Are you sure you want to leave? The group will be deleted since you are the only member.'
-            : 'Are you sure you want to leave this group?'
-            
+                ? 'Are you sure you want to leave? The group will be deleted since you are the only member.'
+                : 'Are you sure you want to leave this group?'
+
         if (confirm(message)) {
             try {
                 await leaveGroupMutation.mutateAsync({ groupId: group.id })
                 // Remove the group from the list
                 const updatedGroups = allGroups.filter(g => g.id !== group.id)
                 setAllGroups(updatedGroups)
-                
+
                 if (updatedGroups.length > 0) {
                     // Switch to another group
                     handleGroupSelect(updatedGroups[0].id)
@@ -527,7 +592,7 @@ function SettingsContent() {
                                         <div className="text-xs text-gray-500">Get notified for vibe check-ins</div>
                                     </div>
                                 </div>
-                                <Button 
+                                <Button
                                     variant={pushEnabled ? "default" : "outline"}
                                     size="sm"
                                     onClick={handlePushToggle}
@@ -543,6 +608,11 @@ function SettingsContent() {
                                     )}
                                 </Button>
                             </div>
+
+                            {/* Test Push Notification Button */}
+                            {pushEnabled && (
+                                <TestPushButton />
+                            )}
                         </Card>
 
                         <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
@@ -641,7 +711,7 @@ function SettingsContent() {
                                 </select>
                             </Card>
                         )}
-                        
+
                         <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
                             <h2 className="font-semibold text-gray-900 dark:text-white">Group Details</h2>
 
@@ -746,7 +816,7 @@ function SettingsContent() {
                                     <span className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full">View only</span>
                                 )}
                             </div>
-                            
+
                             <div className={!isOwnerOfSelectedGroup ? 'opacity-60 pointer-events-none' : ''}>
                                 <div className="flex justify-between items-center mb-2">
                                     <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
@@ -770,7 +840,7 @@ function SettingsContent() {
                                 </div>
                                 <p className="text-xs text-gray-500 mt-1">How often members get pinged for check-ins</p>
                             </div>
-                                
+
                             <div className={`pt-2 border-t border-gray-100 dark:border-gray-700 ${!isOwnerOfSelectedGroup ? 'opacity-60 pointer-events-none' : ''}`}>
                                 <div className="flex justify-between items-center mb-2">
                                     <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
@@ -798,7 +868,7 @@ function SettingsContent() {
                                 </select>
                                 <p className="text-xs text-gray-500 mt-1">Time window for calculating the group vibe average</p>
                             </div>
-                                
+
                             <div className={`pt-2 border-t border-gray-100 dark:border-gray-700 ${!isOwnerOfSelectedGroup ? 'opacity-60 pointer-events-none' : ''}`}>
                                 <div className="flex items-center gap-2 mb-3">
                                     <Clock className="w-4 h-4 text-gray-500" />

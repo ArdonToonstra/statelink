@@ -1,9 +1,37 @@
 'use client'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Zap, ArrowRight, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { authClient } from '@/lib/auth-client'
 
 export default function Home() {
+  const router = useRouter()
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+
+  // Check if user is already logged in and redirect to dashboard
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const session = await authClient.getSession()
+        if (session?.data?.user) {
+          router.replace('/dashboard')
+          return
+        }
+      } catch (e) {
+        // Not logged in, show homepage
+      }
+      setIsCheckingAuth(false)
+    }
+    checkAuth()
+  }, [router])
+
+  // Show nothing while checking auth to avoid flash
+  if (isCheckingAuth) {
+    return null
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-100 via-gray-50 to-gray-50 dark:from-blue-900/20 dark:via-gray-900 dark:to-gray-900">
 
