@@ -21,18 +21,18 @@ export default function DashboardPage() {
   const [modalLoading, setModalLoading] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const modalRef = useRef<HTMLDivElement>(null)
-  
+
   const { data, isLoading, error, refetch } = trpc.dashboard.getData.useQuery(undefined, {
     retry: false,
   })
-  
+
   const setActiveGroupMutation = trpc.groups.setActiveGroup.useMutation({
     onSuccess: () => {
       refetch()
       setShowGroupDropdown(false)
     },
   })
-  
+
   const createGroupMutation = trpc.groups.create.useMutation({
     onSuccess: () => {
       refetch()
@@ -44,7 +44,7 @@ export default function DashboardPage() {
       setModalError(err.message)
     },
   })
-  
+
   const joinGroupMutation = trpc.groups.join.useMutation({
     onSuccess: () => {
       refetch()
@@ -103,7 +103,7 @@ export default function DashboardPage() {
   const handleGroupSwitch = (groupId: string | null) => {
     setActiveGroupMutation.mutate({ groupId })
   }
-  
+
   const handleCreateGroup = async () => {
     if (!groupName.trim()) {
       setModalError('Please enter a group name')
@@ -117,7 +117,7 @@ export default function DashboardPage() {
       setModalLoading(false)
     }
   }
-  
+
   const handleJoinGroup = async () => {
     if (!inviteCode.trim()) {
       setModalError('Please enter an invite code')
@@ -139,7 +139,7 @@ export default function DashboardPage() {
       <PageHeader
         title={
           <div className="relative" ref={dropdownRef}>
-            <button 
+            <button
               onClick={() => setShowGroupDropdown(!showGroupDropdown)}
               className="flex items-center gap-2 hover:opacity-80 transition-opacity"
             >
@@ -153,45 +153,44 @@ export default function DashboardPage() {
                 <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showGroupDropdown ? 'rotate-180' : ''}`} />
               )}
             </button>
-            
+
             {/* Group Switcher Dropdown */}
             {showGroupDropdown && (
               <>
                 {/* Backdrop to block content behind */}
-                <div className="fixed inset-0 z-[99]" onClick={() => setShowGroupDropdown(false)} />
-                <div className="absolute top-full left-0 mt-2 w-64 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 isolate">
-                  <div className="bg-white dark:bg-gray-800 p-2">
+                <div className="fixed inset-0 z-[99] bg-black/20" onClick={() => setShowGroupDropdown(false)} />
+                <div className="absolute top-full left-0 mt-2 w-64 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 bg-white dark:bg-gray-800">
+                  <div className="p-2">
                     <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 py-2">
                       Your Groups
                     </div>
-                    
+
                     {/* Group list */}
                     {data.groups?.map((group) => (
                       <button
                         key={group.id}
                         onClick={() => handleGroupSwitch(group.id)}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors bg-white dark:bg-gray-800 ${
-                          data.activeGroupId === group.id 
-                            ? 'bg-primary/10 text-primary' 
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors bg-white dark:bg-gray-800 ${data.activeGroupId === group.id
+                            ? 'bg-primary/10 text-primary'
                             : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200'
-                        }`}
+                          }`}
                       >
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900 dark:to-purple-900 flex items-center justify-center text-xs font-bold text-primary">
                           {group.name[0]?.toUpperCase()}
                         </div>
                         <div className="flex-1 text-left">
                           <span className="font-medium">{group.name}</span>
-                        {group.isOwner && (
-                          <span className="ml-2 text-xs text-gray-400">Owner</span>
-                        )}
-                      </div>
-                      {data.activeGroupId === group.id && <Check className="w-4 h-4" />}
-                    </button>
-                  ))}
-                </div>
-                
+                          {group.isOwner && (
+                            <span className="ml-2 text-xs text-gray-400">Owner</span>
+                          )}
+                        </div>
+                        {data.activeGroupId === group.id && <Check className="w-4 h-4" />}
+                      </button>
+                    ))}
+                  </div>
+
                   <div className="border-t border-gray-200 dark:border-gray-700 p-2 bg-white dark:bg-gray-800">
-                    <button 
+                    <button
                       onClick={() => { setShowGroupDropdown(false); setShowGroupModal('create'); }}
                       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors bg-white dark:bg-gray-800"
                     >
@@ -200,7 +199,7 @@ export default function DashboardPage() {
                       </div>
                       <span className="font-medium">Create New Group</span>
                     </button>
-                    <button 
+                    <button
                       onClick={() => { setShowGroupDropdown(false); setShowGroupModal('join'); }}
                       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors bg-white dark:bg-gray-800"
                     >
@@ -311,11 +310,11 @@ export default function DashboardPage() {
 
 
       </div>
-      
+
       {/* Create/Join Group Modal */}
       {showGroupModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div 
+          <div
             ref={modalRef}
             className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md animate-in zoom-in-95 slide-in-from-bottom-4 duration-300"
           >
@@ -323,14 +322,14 @@ export default function DashboardPage() {
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">
                 {showGroupModal === 'create' ? 'Create New Group' : 'Join Group'}
               </h2>
-              <button 
+              <button
                 onClick={() => { setShowGroupModal(null); setModalError(''); }}
                 className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
-            
+
             <div className="p-6 space-y-4">
               {showGroupModal === 'create' ? (
                 <>
@@ -346,12 +345,12 @@ export default function DashboardPage() {
                       onKeyDown={(e) => e.key === 'Enter' && handleCreateGroup()}
                     />
                   </div>
-                  
+
                   {modalError && (
                     <p className="text-sm text-red-500">{modalError}</p>
                   )}
-                  
-                  <Button 
+
+                  <Button
                     onClick={handleCreateGroup}
                     disabled={modalLoading}
                     className="w-full h-12 rounded-xl font-semibold"
@@ -377,12 +376,12 @@ export default function DashboardPage() {
                       onKeyDown={(e) => e.key === 'Enter' && handleJoinGroup()}
                     />
                   </div>
-                  
+
                   {modalError && (
                     <p className="text-sm text-red-500">{modalError}</p>
                   )}
-                  
-                  <Button 
+
+                  <Button
                     onClick={handleJoinGroup}
                     disabled={modalLoading}
                     className="w-full h-12 rounded-xl font-semibold"
