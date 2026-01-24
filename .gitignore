@@ -48,3 +48,7 @@ src/app/(payload)/admin/importMap.js
 
 # backups
 backups/
+
+# Serwist
+public/sw*
+public/swe-worker*
