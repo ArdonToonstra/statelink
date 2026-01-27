@@ -156,61 +156,57 @@ export default function DashboardPage() {
 
             {/* Group Switcher Dropdown */}
             {showGroupDropdown && (
-              <>
-                {/* Backdrop to block content behind */}
-                <div className="fixed inset-0 z-[99] bg-black/20" onClick={() => setShowGroupDropdown(false)} />
-                <div className="absolute top-full left-0 mt-2 w-64 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 bg-white dark:bg-gray-800">
-                  <div className="p-2">
-                    <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 py-2">
-                      Your Groups
-                    </div>
-
-                    {/* Group list */}
-                    {data.groups?.map((group) => (
-                      <button
-                        key={group.id}
-                        onClick={() => handleGroupSwitch(group.id)}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors bg-white dark:bg-gray-800 ${data.activeGroupId === group.id
-                            ? 'bg-primary/10 text-primary'
-                            : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200'
-                          }`}
-                      >
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900 dark:to-purple-900 flex items-center justify-center text-xs font-bold text-primary">
-                          {group.name[0]?.toUpperCase()}
-                        </div>
-                        <div className="flex-1 text-left">
-                          <span className="font-medium">{group.name}</span>
-                          {group.isOwner && (
-                            <span className="ml-2 text-xs text-gray-400">Owner</span>
-                          )}
-                        </div>
-                        {data.activeGroupId === group.id && <Check className="w-4 h-4" />}
-                      </button>
-                    ))}
+              <div className="absolute top-full left-0 mt-2 w-64 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 bg-white dark:bg-gray-800">
+                <div className="p-2 bg-white dark:bg-gray-800">
+                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 py-2">
+                    Your Groups
                   </div>
 
-                  <div className="border-t border-gray-200 dark:border-gray-700 p-2 bg-white dark:bg-gray-800">
+                  {/* Group list */}
+                  {data.groups?.map((group) => (
                     <button
-                      onClick={() => { setShowGroupDropdown(false); setShowGroupModal('create'); }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors bg-white dark:bg-gray-800"
+                      key={group.id}
+                      onClick={() => handleGroupSwitch(group.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${data.activeGroupId === group.id
+                          ? 'bg-primary/10 text-primary'
+                          : 'bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200'
+                        }`}
                     >
-                      <div className="w-8 h-8 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center">
-                        <Plus className="w-4 h-4 text-gray-400" />
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900 dark:to-purple-900 flex items-center justify-center text-xs font-bold text-primary">
+                        {group.name[0]?.toUpperCase()}
                       </div>
-                      <span className="font-medium">Create New Group</span>
-                    </button>
-                    <button
-                      onClick={() => { setShowGroupDropdown(false); setShowGroupModal('join'); }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors bg-white dark:bg-gray-800"
-                    >
-                      <div className="w-8 h-8 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center">
-                        <Users className="w-4 h-4 text-gray-400" />
+                      <div className="flex-1 text-left">
+                        <span className="font-medium">{group.name}</span>
+                        {group.isOwner && (
+                          <span className="ml-2 text-xs text-gray-400">Owner</span>
+                        )}
                       </div>
-                      <span className="font-medium">Join Group</span>
+                      {data.activeGroupId === group.id && <Check className="w-4 h-4" />}
                     </button>
-                  </div>
+                  ))}
                 </div>
-              </>
+
+                <div className="border-t border-gray-200 dark:border-gray-700 p-2 bg-white dark:bg-gray-800">
+                  <button
+                    onClick={() => { setShowGroupDropdown(false); setShowGroupModal('create'); }}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors bg-white dark:bg-gray-800"
+                  >
+                    <div className="w-8 h-8 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center">
+                      <Plus className="w-4 h-4 text-gray-400" />
+                    </div>
+                    <span className="font-medium">Create New Group</span>
+                  </button>
+                  <button
+                    onClick={() => { setShowGroupDropdown(false); setShowGroupModal('join'); }}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors bg-white dark:bg-gray-800"
+                  >
+                    <div className="w-8 h-8 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center">
+                      <Users className="w-4 h-4 text-gray-400" />
+                    </div>
+                    <span className="font-medium">Join Group</span>
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         }
@@ -224,7 +220,7 @@ export default function DashboardPage() {
         }
       />
 
-      <div className="max-w-md mx-auto p-4 space-y-6">
+      <div className={`max-w-md mx-auto p-4 space-y-6 transition-all duration-300 ease-out ${showGroupDropdown ? 'mt-64 opacity-50' : 'mt-0 opacity-100'}`}>
 
         {/* Vibe Card */}
         <Card className="border-none shadow-xl shadow-blue-500/5 bg-white dark:bg-gray-800 rounded-[2rem] overflow-hidden relative min-h-[300px] flex flex-col items-center justify-center p-8">

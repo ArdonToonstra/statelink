@@ -15,20 +15,36 @@ import Link from 'next/link'
 // Helper to subscribe to push notifications
 async function subscribeToPush(): Promise<PushSubscription | null> {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        alert('Push notifications are not supported in your browser')
-        return null
+        throw new Error('Push notifications are not supported in your browser')
+    }
+    
+    // Check if service worker is registered
+    const registrations = await navigator.serviceWorker.getRegistrations()
+    if (registrations.length === 0) {
+        throw new Error('Service worker not registered. Please reinstall the app.')
     }
     
     const permission = await Notification.requestPermission()
     if (permission !== 'granted') {
-        alert('Notification permission denied')
-        return null
+        throw new Error('Notification permission denied')
     }
     
-    const registration = await navigator.serviceWorker.ready
+    // Add timeout to prevent hanging
+    const registration = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<never>((_, reject) => 
+            setTimeout(() => reject(new Error('Service worker ready timeout')), 10000)
+        )
+    ])
+    
+    const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+    if (!vapidKey) {
+        throw new Error('VAPID public key not configured')
+    }
+    
     const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+        applicationServerKey: vapidKey,
     })
     
     return subscription
@@ -37,8 +53,19 @@ async function subscribeToPush(): Promise<PushSubscription | null> {
 // Helper to get existing subscription
 async function getExistingSubscription(): Promise<PushSubscription | null> {
     if (!('serviceWorker' in navigator)) return null
-    const registration = await navigator.serviceWorker.ready
-    return registration.pushManager.getSubscription()
+    
+    // Add timeout to prevent hanging
+    try {
+        const registration = await Promise.race([
+            navigator.serviceWorker.ready,
+            new Promise<never>((_, reject) => 
+                setTimeout(() => reject(new Error('Timeout')), 5000)
+            )
+        ])
+        return registration.pushManager.getSubscription()
+    } catch {
+        return null
+    }
 }
 
 // Sub-component for regeneration button state
@@ -243,7 +270,8 @@ function SettingsContent() {
             }
         } catch (e) {
             console.error('Error toggling push:', e)
-            alert('Failed to update notification settings')
+            const message = e instanceof Error ? e.message : 'Failed to update notification settings'
+            alert(message)
         } finally {
             setPushLoading(false)
         }
