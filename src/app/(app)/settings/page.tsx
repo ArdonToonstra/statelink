@@ -21,6 +21,10 @@ async function subscribeToPush(): Promise<PushSubscription | null> {
     // Check if service worker is registered
     const registrations = await navigator.serviceWorker.getRegistrations()
     if (registrations.length === 0) {
+        // Check if we're in development mode
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            throw new Error('Push notifications are disabled in development mode. Deploy to production to test.')
+        }
         throw new Error('Service worker not registered. Please reinstall the app.')
     }
     
