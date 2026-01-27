@@ -3,12 +3,12 @@ version: '3.8'
 services:
   postgres:
     image: postgres:17-alpine
-    container_name: statelink-db
+    container_name: groupvibes-db
     restart: always
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: statelink
+      POSTGRES_DB: groupvibes
     ports:
       - "5433:5432"
     volumes:

@@ -4,7 +4,7 @@ import { TRPCProvider } from '@/lib/trpc'
 import '../globals.css'
 
 export const metadata: Metadata = {
-  title: 'Statelink',
+  title: 'GroupVibes',
   description: 'A group vibe check app',
 }
 

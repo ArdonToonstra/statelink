@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { Zap, ArrowRight, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -39,10 +40,14 @@ export default function Home() {
       <header className="w-full p-4 md:p-6 relative z-10">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <div className="bg-primary/10 p-2 rounded-lg">
-              <Zap className="w-5 h-5 text-primary" />
-            </div>
-            <span className="font-bold text-xl text-gray-900 dark:text-white tracking-tight">StateLink</span>
+            <Image 
+              src="/icons/logo-groupvibes.PNG" 
+              alt="GroupVibes Logo" 
+              width={50} 
+              height={50}
+              className="rounded-lg"
+            />
+            <span className="hidden md:inline font-bold text-xl text-gray-900 dark:text-white tracking-tight">GroupVibes</span>
           </Link>
           <nav className="flex items-center gap-1 md:gap-2">
             <Link href="/how-it-works" className="font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors px-2 md:px-4 py-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-sm md:text-base">
@@ -66,7 +71,7 @@ export default function Home() {
 
         {/* Hero Text */}
         <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold bg-clip-text text-transparent bg-gradient-to-br from-gray-900 via-gray-700 to-gray-900 dark:from-white dark:via-gray-200 dark:to-gray-400 mb-6 tracking-tight animate-in fade-in slide-in-from-bottom-5 duration-700 fill-mode-backwards delay-100">
-          Link your states.
+          Know the group's vibe.
         </h1>
 
         {/* Description */}
@@ -92,7 +97,7 @@ export default function Home() {
           <span className="mx-2">·</span>
           <Link href="/privacy" className="hover:text-gray-600 dark:hover:text-gray-400 transition-colors">Privacy</Link>
         </div>
-        <div>© {new Date().getFullYear()} StateLink</div>
+        <div>© {new Date().getFullYear()} GroupVibes</div>
       </footer>
     </div>
   )

@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
     return {
-        name: 'Statelink',
-        short_name: 'Statelink',
+        name: 'GroupVibes',
+        short_name: 'GroupVibes',
         description: 'A group vibe check app',
         start_url: '/dashboard',
         display: 'standalone',

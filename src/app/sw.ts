@@ -115,7 +115,7 @@ self.addEventListener('push', function (event: PushEvent) {
                 url: payload.url || '/check-in',
                 dateOfArrival: Date.now(),
             },
-            tag: 'statelink-notification', // Prevent duplicate notifications
+            tag: 'groupvibes-notification', // Prevent duplicate notifications
         };
 
         console.log('[SW] Showing notification with options:', JSON.stringify(options));

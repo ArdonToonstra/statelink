@@ -14,7 +14,7 @@ export default function InstallPage() {
             <div className="container max-w-2xl mx-auto p-4 space-y-6">
                 <div className="space-y-2 text-center">
                     <p className="text-muted-foreground">
-                        Add Statelink to your home screen for the best experience.
+                        Add GroupVibes to your home screen for the best experience.
                     </p>
                 </div>
 
@@ -31,7 +31,7 @@ export default function InstallPage() {
                             </div>
                             <div className="space-y-4">
                                 <ol className="list-decimal list-inside space-y-2 text-sm">
-                                    <li>Open <strong>Statelink</strong> in Safari</li>
+                                    <li>Open <strong>GroupVibes</strong> in Safari</li>
                                     <li>Tap the <strong>Share</strong> button <Share className="inline h-4 w-4 mx-1" /> at the bottom of the screen</li>
                                     <li>Scroll down and tap <strong>Add to Home Screen</strong> <PlusSquare className="inline h-4 w-4 mx-1" /></li>
                                     <li>Tap <strong>Add</strong> in the top right corner</li>
@@ -52,7 +52,7 @@ export default function InstallPage() {
                             </div>
                             <div className="space-y-4">
                                 <ol className="list-decimal list-inside space-y-2 text-sm">
-                                    <li>Open <strong>Statelink</strong> in Chrome</li>
+                                    <li>Open <strong>GroupVibes</strong> in Chrome</li>
                                     <li>Tap the <strong>Menu</strong> icon <MoreVertical className="inline h-4 w-4 mx-1" /> in the top right corner</li>
                                     <li>Tap <strong>Install app</strong> or <strong>Add to Home screen</strong></li>
                                     <li>Follow the prompt to install</li>

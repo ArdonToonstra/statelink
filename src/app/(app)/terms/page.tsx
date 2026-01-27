@@ -27,7 +27,7 @@ export default function TermsPage() {
             Use at Your Own Risk
           </h2>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            By using StateLink, you acknowledge and agree that your use of this application is entirely at your own risk. 
+            By using GroupVibes, you acknowledge and agree that your use of this application is entirely at your own risk. 
             We provide this service &quot;as is&quot; without any warranties, express or implied.
           </p>
 
@@ -35,7 +35,7 @@ export default function TermsPage() {
             Limitation of Liability
           </h2>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            To the fullest extent permitted by applicable law, StateLink and its creators shall not be liable for any 
+            To the fullest extent permitted by applicable law, GroupVibes and its creators shall not be liable for any 
             direct, indirect, incidental, special, consequential, or punitive damages resulting from your use of or 
             inability to use the application.
           </p>
@@ -44,7 +44,7 @@ export default function TermsPage() {
             No Professional Advice
           </h2>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            StateLink is not a substitute for professional medical, mental health, or any other professional advice. 
+            GroupVibes is not a substitute for professional medical, mental health, or any other professional advice. 
             If you are experiencing a mental health crisis, please contact a qualified professional or emergency services.
           </p>
 

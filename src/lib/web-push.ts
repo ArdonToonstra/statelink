@@ -17,7 +17,7 @@ function ensureVapidConfigured(): void {
   }
   
   webpush.setVapidDetails(
-    'mailto:notifications@statelink.app',
+    'mailto:notifications@groupvibes.nl',
     vapidPublicKey,
     vapidPrivateKey
   )

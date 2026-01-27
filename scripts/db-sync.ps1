@@ -4,9 +4,9 @@
 $ErrorActionPreference = "Stop"
 
 # Configuration
-$ContainerName = "statelink-db"
+$ContainerName = "groupvibes-db"
 $LocalDbUser = "postgres"
-$LocalDbName = "statelink"
+$LocalDbName = "groupvibes"
 $BackupDir = "backups"
 
 # Create backup directory if it doesn't exist
@@ -17,7 +17,7 @@ if (!(Test-Path -Path $BackupDir)) {
 
 # Prompt for Production Database URL
 Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host "      Statelink Database Sync Tool        " -ForegroundColor Cyan
+Write-Host "      GroupVibes Database Sync Tool       " -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host ""
 $ProdDbUrl = Read-Host "Enter Production Database Connection String (postgres://...)"

@@ -386,7 +386,7 @@ function OnboardingContent() {
               <div className="bg-primary/10 p-1.5 rounded-lg">
                 <Zap className="w-4 h-4 text-primary" />
               </div>
-              <span className="font-bold text-gray-900 dark:text-white tracking-tight">StateLink</span>
+              <span className="font-bold text-gray-900 dark:text-white tracking-tight">GroupVibes</span>
             </div>
           </div>
 

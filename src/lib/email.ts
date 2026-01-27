@@ -36,8 +36,8 @@ export async function sendVerificationEmail({ to, code }: SendVerificationEmailP
             Messages: [
                 {
                     From: {
-                        Email: 'noreply@statelink.nl',
-                        Name: 'StateLink',
+                        Email: 'noreply@groupvibes.nl',
+                        Name: 'GroupVibes',
                     },
                     To: [
                         {
@@ -47,7 +47,7 @@ export async function sendVerificationEmail({ to, code }: SendVerificationEmailP
                     Subject: 'Your Verification Code',
                     TextPart: `Your verification code is: ${code}. It expires in 30 minutes.`,
                     HTMLPart: `
-            <h3>Welcome to StateLink!</h3>
+            <h3>Welcome to GroupVibes!</h3>
             <p>Your verification code is: <strong>${code}</strong></p>
             <p>This code will expire in 30 minutes.</p>
           `,
@@ -85,8 +85,8 @@ export async function sendPasswordResetEmail({ to, resetUrl }: SendPasswordReset
             Messages: [
                 {
                     From: {
-                        Email: 'noreply@statelink.nl',
-                        Name: 'StateLink',
+                        Email: 'noreply@groupvibes.nl',
+                        Name: 'GroupVibes',
                     },
                     To: [
                         {
@@ -94,11 +94,11 @@ export async function sendPasswordResetEmail({ to, resetUrl }: SendPasswordReset
                         },
                     ],
                     Subject: 'Reset Your Password',
-                    TextPart: `You requested a password reset for your StateLink account. Click this link to reset your password: ${resetUrl}. This link expires in 1 hour. If you didn't request this, you can safely ignore this email.`,
+                    TextPart: `You requested a password reset for your GroupVibes account. Click this link to reset your password: ${resetUrl}. This link expires in 1 hour. If you didn't request this, you can safely ignore this email.`,
                     HTMLPart: `
             <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #333;">Reset Your Password</h2>
-                <p>You requested a password reset for your StateLink account.</p>
+                <p>You requested a password reset for your GroupVibes account.</p>
                 <p>Click the button below to reset your password:</p>
                 <p style="margin: 24px 0;">
                     <a href="${resetUrl}" style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block;">
@@ -144,14 +144,14 @@ export async function sendEmailChangeVerification({ to, code, isNewEmail }: Send
         const heading = isNewEmail ? 'Verify Your New Email Address' : 'Email Change Request'
         const description = isNewEmail 
             ? 'Please verify this email address to complete the change.'
-            : 'Someone requested to change the email address for your StateLink account.'
+            : 'Someone requested to change the email address for your GroupVibes account.'
 
         const request = mailjet.post('send', { version: 'v3.1' }).request({
             Messages: [
                 {
                     From: {
-                        Email: 'noreply@statelink.nl',
-                        Name: 'StateLink',
+                        Email: 'noreply@groupvibes.nl',
+                        Name: 'GroupVibes',
                     },
                     To: [
                         {
