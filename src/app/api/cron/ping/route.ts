@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
       const nextPing = initializeNextPingTime(group.frequency, group.intervalMode)
       await db.update(groups)
         .set({ nextPingTime: nextPing })
-        .where(lte(groups.id, group.id))
+        .where(eq(groups.id, group.id))
       
       console.log(`[Cron Ping] Initialized nextPingTime for group ${group.name}: ${nextPing.toISOString()}`)
     }
@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
           nextPingTime: nextPingTime,
           updatedAt: now,
         })
-        .where(lte(groups.id, group.id))
+        .where(eq(groups.id, group.id))
       
       results.push({
         groupId: group.id,

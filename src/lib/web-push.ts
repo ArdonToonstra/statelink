@@ -185,8 +185,9 @@ export function calculateNextPingTime(frequency: number, intervalMode: 'random' 
   // Avoid log(0) and ensure minimum interval of 1 hour
   const randomHours = Math.max(1, -Math.log(1 - u) * expectedHoursPerPing)
   
-  // Cap at 2x the expected interval to avoid extremely long waits
-  const cappedHours = Math.min(randomHours, expectedHoursPerPing * 2)
+  // Cap at 1.25x the expected interval to avoid extremely long waits
+  // Also cap at maximum 3 days (72 hours) regardless of frequency
+  const cappedHours = Math.min(randomHours, expectedHoursPerPing * 1.25, 72)
   
   const nextPing = new Date(now.getTime() + cappedHours * 60 * 60 * 1000)
   return nextPing

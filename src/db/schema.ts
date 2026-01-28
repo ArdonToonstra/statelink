@@ -70,7 +70,7 @@ export const groups = pgTable('groups', {
   name: text('name').notNull(),
   inviteCode: varchar('invite_code', { length: 8 }).notNull().unique(),
   inviteCodeCreated: timestamp('invite_code_created').defaultNow(),
-  frequency: integer('frequency').notNull().default(2), // Pings per week
+  frequency: integer('frequency').notNull().default(7), // Pings per week (1 per day)
   intervalMode: intervalModeEnum('interval_mode').notNull().default('random'),
   quietHoursStart: integer('quiet_hours_start'), // Hour 0-23
   quietHoursEnd: integer('quiet_hours_end'), // Hour 0-23
