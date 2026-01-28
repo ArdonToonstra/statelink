@@ -97,6 +97,29 @@ export default function DashboardPage() {
     return "text-orange-500"
   }
 
+  // Get vibe message based on pulse value
+  const getVibeMessage = (val: number): string => {
+    if (val >= 9.5) return "Absolutely phenomenal! 🎉"
+    if (val >= 9) return "Living the dream!"
+    if (val >= 8.5) return "Vibes are immaculate"
+    if (val >= 8) return "Energy is electric"
+    if (val >= 7.5) return "Feeling fantastic"
+    if (val >= 7) return "Pretty darn good"
+    if (val >= 6.5) return "Solid vibes all around"
+    if (val >= 6) return "Doing just fine"
+    if (val >= 5.5) return "Keepin' it steady"
+    if (val >= 5) return "Holding the middle ground"
+    if (val >= 4.5) return "Could use a boost"
+    if (val >= 4) return "A bit wobbly"
+    if (val >= 3.5) return "Needs some love"
+    if (val >= 3) return "Time for a check-in"
+    if (val >= 2.5) return "Looking a little rough"
+    if (val >= 2) return "SOS: support needed"
+    if (val >= 1.5) return "Tough times right now"
+    if (val >= 1) return "Hang in there"
+    return "Let's turn this around"
+  }
+
   // Empty State Logic
   const showInviteCallout = isSolo && !hasVibe && !data.userLastVibe
 
@@ -252,9 +275,7 @@ export default function DashboardPage() {
             </div>
 
             <p className="text-gray-500 font-medium">
-              {hasVibe
-                ? (pulseValue > 7 ? "Vibes are immaculate" : pulseValue > 4 ? "Keepin' it steady" : "Needs some love")
-                : emptyVibeText}
+              {hasVibe ? getVibeMessage(pulseValue) : emptyVibeText}
             </p>
           </div>
 
