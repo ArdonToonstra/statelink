@@ -22,7 +22,10 @@ export const pushRouter = createTRPCRouter({
         // Update existing subscription with current session ID
         await ctx.db.update(pushSubscriptions)
           .set({
+            userId: ctx.user.id,
             sessionId: ctx.session.session.id,
+            p256dh: input.p256dh,
+            auth: input.auth,
             updatedAt: new Date(),
           })
           .where(eq(pushSubscriptions.endpoint, input.endpoint))
@@ -53,6 +56,7 @@ export const pushRouter = createTRPCRouter({
 
     let sent = 0
     let failed = 0
+    let lastError: string | undefined
 
     for (const sub of subs) {
       const result = await sendNotification(sub, {
@@ -67,10 +71,11 @@ export const pushRouter = createTRPCRouter({
         sent++
       } else {
         failed++
+        lastError = result.error
       }
     }
 
-    return { success: sent > 0, sent, failed }
+    return { success: sent > 0, sent, failed, error: sent > 0 ? undefined : (lastError ?? 'All notifications failed') }
   }),
 
   // Unsubscribe from push notifications

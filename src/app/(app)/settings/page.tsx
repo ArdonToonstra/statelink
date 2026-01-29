@@ -12,20 +12,36 @@ import { authClient } from '@/lib/auth-client'
 import { trpc } from '@/lib/trpc'
 import Link from 'next/link'
 
+function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
+    // Convert from base64url to base64
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+
+    const rawData = window.atob(base64)
+    const buffer = new ArrayBuffer(rawData.length)
+    const outputArray = new Uint8Array(buffer)
+    for (let i = 0; i < rawData.length; i++) {
+        outputArray[i] = rawData.charCodeAt(i)
+    }
+    return outputArray
+}
+
 // Helper to subscribe to push notifications
 async function subscribeToPush(): Promise<PushSubscription | null> {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
         throw new Error('Push notifications are not supported in your browser')
     }
     
-    // Check if service worker is registered
-    const registrations = await navigator.serviceWorker.getRegistrations()
-    if (registrations.length === 0) {
+    // Ensure a service worker is registered (or register it as a fallback)
+    let registration = await navigator.serviceWorker.getRegistration()
+    if (!registration) {
         // Check if we're in development mode
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
             throw new Error('Push notifications are disabled in development mode. Deploy to production to test.')
         }
-        throw new Error('Service worker not registered. Please reinstall the app.')
+
+        // In production we should have it via <ServiceWorkerRegister />, but try to self-heal
+        registration = await navigator.serviceWorker.register('/sw.js')
     }
     
     const permission = await Notification.requestPermission()
@@ -34,7 +50,7 @@ async function subscribeToPush(): Promise<PushSubscription | null> {
     }
     
     // Add timeout to prevent hanging
-    const registration = await Promise.race([
+    const readyRegistration = await Promise.race([
         navigator.serviceWorker.ready,
         new Promise<never>((_, reject) => 
             setTimeout(() => reject(new Error('Service worker ready timeout')), 10000)
@@ -46,9 +62,9 @@ async function subscribeToPush(): Promise<PushSubscription | null> {
         throw new Error('VAPID public key not configured')
     }
     
-    const subscription = await registration.pushManager.subscribe({
+    const subscription = await readyRegistration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: vapidKey,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey),
     })
     
     return subscription
@@ -291,10 +307,19 @@ function SettingsContent() {
                 const subscription = await subscribeToPush()
                 if (subscription) {
                     const json = subscription.toJSON()
+                    const p256dh = json.keys?.p256dh
+                    const auth = json.keys?.auth
+
+                    if (!p256dh || !auth) {
+                        // If we can't extract keys, the server won't be able to send.
+                        // Clean up the browser subscription so the user can retry.
+                        await subscription.unsubscribe()
+                        throw new Error('Push subscription keys missing; please try again or use a different browser/device.')
+                    }
                     await pushSubscribeMutation.mutateAsync({
                         endpoint: subscription.endpoint,
-                        p256dh: json.keys?.p256dh ?? '',
-                        auth: json.keys?.auth ?? '',
+                        p256dh,
+                        auth,
                     })
                     setPushEnabled(true)
                 }
