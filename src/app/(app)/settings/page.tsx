@@ -26,10 +26,26 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
     return outputArray
 }
 
+function isIos(): boolean {
+    if (typeof navigator === 'undefined') return false
+    return /iP(hone|ad|od)/.test(navigator.userAgent)
+}
+
+function isStandaloneDisplayMode(): boolean {
+    // iOS Safari exposes navigator.standalone; other browsers support display-mode media query
+    const nav = navigator as Navigator & { standalone?: boolean }
+    return Boolean(nav.standalone) || window.matchMedia('(display-mode: standalone)').matches
+}
+
 // Helper to subscribe to push notifications
 async function subscribeToPush(): Promise<PushSubscription | null> {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
         throw new Error('Push notifications are not supported in your browser')
+    }
+
+    // iOS requires the website to be installed to the home screen (PWA) for Web Push.
+    if (isIos() && !isStandaloneDisplayMode()) {
+        throw new Error('On iPhone/iPad, push notifications only work for the installed app. Use Share → “Add to Home Screen”, then enable push from there.')
     }
     
     // Ensure a service worker is registered (or register it as a fallback)
@@ -288,6 +304,20 @@ function SettingsContent() {
         }, 30000)
         
         return () => clearInterval(intervalId)
+    }, [])
+
+    // Debug: receive messages from service worker when a push arrives
+    useEffect(() => {
+        if (!('serviceWorker' in navigator)) return
+
+        const handler = (event: MessageEvent) => {
+            if (event.data?.type === 'PUSH_RECEIVED') {
+                console.log('[Settings] Service worker received push:', event.data.payload)
+            }
+        }
+
+        navigator.serviceWorker.addEventListener('message', handler)
+        return () => navigator.serviceWorker.removeEventListener('message', handler)
     }, [])
     
     // Handle push notification toggle
@@ -644,12 +674,12 @@ function SettingsContent() {
                                             try {
                                                 const result = await pushSendTestMutation.mutateAsync()
                                                 if (result.success) {
-                                                    alert(`Test notification sent! (${result.sent} delivered)`)
+                                                    alert(`Test push sent to ${result.sent} subscription(s).\n\nNote: this counts successful sends to the push service; it does not guarantee the OS displayed a notification.`)
                                                 } else {
-                                                    alert(result.error || 'Failed to send test notification')
+                                                    alert(result.error || 'Failed to send test push')
                                                 }
                                             } catch (e) {
-                                                alert(e instanceof Error ? e.message : 'Failed to send test notification')
+                                                alert(e instanceof Error ? e.message : 'Failed to send test push')
                                             } finally {
                                                 setTestingSending(false)
                                             }

@@ -124,10 +124,22 @@ self.addEventListener('push', function (event: PushEvent) {
 
         console.log('[SW] Showing notification with options:', JSON.stringify(options));
 
-        event.waitUntil(
-            self.registration.showNotification(payload.title || 'Vibe Check!', options)
-                .then(() => console.log('[SW] Notification shown successfully'))
-                .catch(err => console.error('[SW] Failed to show notification:', err))
+        // Best practice (per push.foo): combine client messaging + showNotification
+        // in a single Promise.all inside one event.waitUntil to keep SW alive.
+        const messageClientsPromise = self.clients
+            .matchAll({ type: 'window', includeUncontrolled: true })
+            .then((clientList) => {
+                for (const client of clientList) {
+                    client.postMessage({ type: 'PUSH_RECEIVED', payload });
+                }
+            });
+
+        const showNotificationPromise = self.registration
+            .showNotification(payload.title || 'Vibe Check!', options)
+            .then(() => console.log('[SW] Notification shown successfully'))
+            .catch((err) => console.error('[SW] Failed to show notification:', err));
+
+        event.waitUntil(Promise.all([messageClientsPromise, showNotificationPromise])
         );
     } catch (error) {
         console.error('[SW] Error parsing push payload:', error);
