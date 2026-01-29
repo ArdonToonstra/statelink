@@ -58,10 +58,14 @@ async function handleSessionRequest(request: Request): Promise<Response> {
 // ============================================
 // Serwist instance
 // ============================================
+// Note: We handle skipWaiting and clientsClaim manually in the event handlers
+// below instead of via Serwist config. This is because iOS Safari requires
+// these to be called during the install/activate events (not in constructor)
+// for proper service worker lifecycle management.
 const serwist = new Serwist({
     precacheEntries: self.__SW_MANIFEST,
-    skipWaiting: true,
-    clientsClaim: true,
+    skipWaiting: false, // Handled manually in install event for iOS Safari compatibility
+    clientsClaim: false, // Handled manually in activate event for iOS Safari compatibility
     navigationPreload: true,
     runtimeCaching: defaultCache,
     fallbacks: {
@@ -106,7 +110,8 @@ self.addEventListener('activate', function (event: ExtendableEvent) {
     );
 });
 
-// Add Serwist event listeners after our explicit handlers
+// Serwist handles precaching, runtime caching, and other SW features
+// Our explicit install/activate handlers above ensure iOS Safari compatibility
 serwist.addEventListeners();
 
 // ============================================
