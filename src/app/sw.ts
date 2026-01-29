@@ -76,6 +76,37 @@ const serwist = new Serwist({
     },
 });
 
+// ============================================
+// Explicit install event handler
+// ============================================
+// iOS Safari requires explicit lifecycle management
+// This ensures the service worker activates immediately on installation
+self.addEventListener('install', function (event: ExtendableEvent) {
+    console.log('[SW] Install event fired');
+    // Skip waiting to activate immediately (critical for iOS Safari)
+    event.waitUntil(
+        self.skipWaiting().then(() => {
+            console.log('[SW] Skip waiting completed during install');
+        })
+    );
+});
+
+// ============================================
+// Explicit activate event handler
+// ============================================
+// iOS Safari requires explicit client claiming
+// This ensures the service worker takes control immediately on activation
+self.addEventListener('activate', function (event: ExtendableEvent) {
+    console.log('[SW] Activate event fired');
+    // Take control of all clients immediately (critical for iOS Safari)
+    event.waitUntil(
+        self.clients.claim().then(() => {
+            console.log('[SW] Clients claimed during activate');
+        })
+    );
+});
+
+// Add Serwist event listeners after our explicit handlers
 serwist.addEventListeners();
 
 // ============================================
