@@ -60,9 +60,9 @@ export const pushRouter = createTRPCRouter({
 
     for (const sub of subs) {
       const result = await sendNotification(sub, {
-        title: '🎉 Test Notification',
-        body: 'Push notifications are working! You\'ll receive vibe check reminders here.',
-        url: '/settings',
+        title: 'Vibe Check! 🎯',
+        body: 'How are you feeling right now?',
+        url: '/check-in',
         icon: '/icons/icon-192x192.png',
         badge: '/icons/icon-192x192.png',
       })
@@ -97,5 +97,13 @@ export const pushRouter = createTRPCRouter({
     })
 
     return subs
+  }),
+
+  // Delete all subscriptions for the current user (useful for cleanup/troubleshooting)
+  clearAll: protectedProcedure.mutation(async ({ ctx }) => {
+    const result = await ctx.db.delete(pushSubscriptions)
+      .where(eq(pushSubscriptions.userId, ctx.user.id))
+
+    return { success: true, message: 'All push subscriptions cleared. Re-enable push to create a fresh subscription.' }
   }),
 })

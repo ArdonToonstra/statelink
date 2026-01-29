@@ -219,7 +219,10 @@ function SettingsContent() {
     const pushSubscribeMutation = trpc.push.subscribe.useMutation()
     const pushUnsubscribeMutation = trpc.push.unsubscribe.useMutation()
     const pushSendTestMutation = trpc.push.sendTest.useMutation()
+    const pushClearAllMutation = trpc.push.clearAll.useMutation()
+    const pushListQuery = trpc.push.list.useQuery(undefined, { enabled: false })
     const [testingSending, setTestingSending] = useState(false)
+    const [resettingPush, setResettingPush] = useState(false)
 
     // Redirect if unauthorized
     useEffect(() => {
@@ -658,6 +661,7 @@ function SettingsContent() {
                                 </Button>
                             </div>
                             {pushEnabled && (
+                                <>
                                 <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-xl">
                                     <div className="flex items-center gap-3">
                                         <Zap className="w-5 h-5 text-amber-500" />
@@ -694,6 +698,64 @@ function SettingsContent() {
                                         )}
                                     </Button>
                                 </div>
+                                <div className="flex items-center justify-between p-4 bg-orange-50 dark:bg-orange-900/20 rounded-xl">
+                                    <div className="flex items-center gap-3">
+                                        <RefreshCw className="w-5 h-5 text-orange-500" />
+                                        <div>
+                                            <div className="font-semibold text-gray-700 dark:text-gray-200">Reset Push</div>
+                                            <div className="text-xs text-gray-500">Clear old subscriptions & re-register (troubleshooting)</div>
+                                        </div>
+                                    </div>
+                                    <Button 
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={async () => {
+                                            if (!confirm('This will clear all your push subscriptions and re-register this device. Continue?')) return
+                                            setResettingPush(true)
+                                            try {
+                                                // 1. Clear all server-side subscriptions
+                                                await pushClearAllMutation.mutateAsync()
+                                                
+                                                // 2. Unsubscribe browser-side if exists
+                                                const existingSub = await getExistingSubscription()
+                                                if (existingSub) {
+                                                    await existingSub.unsubscribe()
+                                                }
+                                                
+                                                setPushEnabled(false)
+                                                
+                                                // 3. Re-subscribe fresh
+                                                const newSub = await subscribeToPush()
+                                                if (newSub) {
+                                                    const json = newSub.toJSON()
+                                                    const p256dh = json.keys?.p256dh
+                                                    const auth = json.keys?.auth
+                                                    if (p256dh && auth) {
+                                                        await pushSubscribeMutation.mutateAsync({ endpoint: newSub.endpoint, p256dh, auth })
+                                                        setPushEnabled(true)
+                                                        alert('Push reset complete! Try Send Test now.')
+                                                    } else {
+                                                        await newSub.unsubscribe()
+                                                        alert('Failed to get push keys. Please try again.')
+                                                    }
+                                                }
+                                            } catch (e) {
+                                                alert(e instanceof Error ? e.message : 'Reset failed')
+                                            } finally {
+                                                setResettingPush(false)
+                                            }
+                                        }}
+                                        disabled={resettingPush}
+                                        className="min-w-[80px]"
+                                    >
+                                        {resettingPush ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            'Reset'
+                                        )}
+                                    </Button>
+                                </div>
+                                </>
                             )}
                         </Card>
 
