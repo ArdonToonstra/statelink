@@ -48,8 +48,12 @@ async function subscribeToPush(): Promise<PushSubscription | null> {
         throw new Error('On iPhone/iPad, push notifications only work for the installed app. Use Share → “Add to Home Screen”, then enable push from there.')
     }
     
+    // Debug: Check existing registrations
+    const existingReg = await navigator.serviceWorker.getRegistration()
+    console.log('[Push] Existing registration:', existingReg?.active?.state, existingReg?.installing?.state, existingReg?.waiting?.state)
+
     // Ensure a service worker is registered (or register it as a fallback)
-    let registration = await navigator.serviceWorker.getRegistration()
+    let registration = existingReg
     if (!registration) {
         // Check if we're in development mode
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
@@ -57,22 +61,41 @@ async function subscribeToPush(): Promise<PushSubscription | null> {
         }
 
         // In production we should have it via <ServiceWorkerRegister />, but try to self-heal
+        console.log('[Push] No registration found, registering sw.js...')
         registration = await navigator.serviceWorker.register('/sw.js')
+        console.log('[Push] Registered, state:', registration.active?.state, registration.installing?.state)
     }
-    
+
     const permission = await Notification.requestPermission()
     if (permission !== 'granted') {
         throw new Error('Notification permission denied')
     }
-    
+
+    // If there's an installing worker, wait for it to activate
+    if (registration.installing || registration.waiting) {
+        console.log('[Push] Waiting for service worker to activate...')
+        await new Promise<void>((resolve) => {
+            const worker = registration.installing || registration.waiting
+            if (!worker) { resolve(); return }
+            worker.addEventListener('statechange', () => {
+                console.log('[Push] Worker state changed to:', worker.state)
+                if (worker.state === 'activated') resolve()
+            })
+            // Also resolve if already active
+            if (worker.state === 'activated') resolve()
+        })
+    }
+
     // Add timeout to prevent hanging
+    console.log('[Push] Waiting for navigator.serviceWorker.ready...')
     const readyRegistration = await Promise.race([
         navigator.serviceWorker.ready,
-        new Promise<never>((_, reject) => 
-            setTimeout(() => reject(new Error('Service worker ready timeout')), 10000)
+        new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Service worker ready timeout - SW may have failed to activate. Check browser console for errors.')), 10000)
         )
     ])
-    
+    console.log('[Push] Ready! Active worker:', readyRegistration.active?.state)
+
     const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
     if (!vapidKey) {
         throw new Error('VAPID public key not configured')
