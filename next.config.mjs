@@ -3,8 +3,7 @@ import { spawnSync } from "node:child_process";
 import withSerwistInit from "@serwist/next";
 
 const nextConfig = {
-  // Add any custom config here
-  // Required for Next.js 16+ with PWA plugins
+  // turbopack config only used in dev mode
   turbopack: {},
 }
 

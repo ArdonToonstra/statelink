@@ -48,8 +48,12 @@ export async function GET(request: NextRequest) {
       count: userSubs.length,
       subscriptions: userSubs.map(s => ({
         id: s.id,
-        endpoint: s.endpoint.substring(0, 60) + '...',
+        endpoint: s.endpoint,
+        endpointHost: new URL(s.endpoint).host,
+        p256dhLength: s.p256dh?.length || 0,
+        authLength: s.auth?.length || 0,
         createdAt: s.createdAt,
+        updatedAt: s.updatedAt,
       })),
     },
     groups: memberships.map(m => ({
