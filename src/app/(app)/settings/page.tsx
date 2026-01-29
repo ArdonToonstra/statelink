@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { PageHeader } from '@/components/ui/page-header'
-import { Download, Trash2, User, Users, Copy, Check, LogOut, Loader2, LogOut as LeaveIcon, RefreshCw, AlertCircle, Plus, Hash, Smartphone, Bell, BellOff, Clock, Zap, Mail, Key } from 'lucide-react'
+import { Download, Trash2, User, Users, Copy, Check, LogOut, Loader2, LogOut as LeaveIcon, RefreshCw, AlertCircle, Plus, Hash, Smartphone, Bell, BellOff, Clock, Zap, Mail, Key, Calendar } from 'lucide-react'
+import { CalendarModal } from '@/components/calendar-modal'
 import { authClient } from '@/lib/auth-client'
 import { trpc } from '@/lib/trpc'
 import Link from 'next/link'
@@ -39,8 +40,8 @@ function isStandaloneDisplayMode(): boolean {
 
 // Helper to subscribe to push notifications
 async function subscribeToPush(): Promise<PushSubscription | null> {
-    if (typeof window !== 'undefined' && !window.isSecureContext) { 
-        throw new Error('Security Error: Push Notifications require HTTPS or Localhost. You seem to be on an insecure connection (http://IP...).') 
+    if (typeof window !== 'undefined' && !window.isSecureContext) {
+        throw new Error('Security Error: Push Notifications require HTTPS or Localhost. You seem to be on an insecure connection (http://IP...).')
     }
 
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -51,14 +52,14 @@ async function subscribeToPush(): Promise<PushSubscription | null> {
     if (isIos() && !isStandaloneDisplayMode()) {
         throw new Error('On iPhone/iPad, push notifications only work for the installed app. Use Share → “Add to Home Screen”, then enable push from there.')
     }
-    
+
     // Debug: Check existing registrations
     const existingReg = await navigator.serviceWorker.getRegistration()
     // console.log('[Push] Existing registration:', existingReg?.active?.state, existingReg?.installing?.state, existingReg?.waiting?.state)
 
     // Ensure a service worker is registered (or register it as a fallback)
     let registration = existingReg
-    
+
     // If registration exists but relies on a broken worker (all null), force re-register
     const isBrokenRegistration = registration && !registration.active && !registration.installing && !registration.waiting
 
@@ -80,7 +81,7 @@ async function subscribeToPush(): Promise<PushSubscription | null> {
     // This fixes iOS Safari where the worker can get stuck in waiting state
     if (registration.waiting) {
         // console.log('[Push] Found waiting worker, forcing activation...')
-        
+
         // Set up controllerchange listener BEFORE posting message to avoid race condition
         const controllerChangePromise = new Promise<void>((resolve) => {
             const handler = () => {
@@ -88,20 +89,20 @@ async function subscribeToPush(): Promise<PushSubscription | null> {
                 resolve()
             }
             navigator.serviceWorker.addEventListener('controllerchange', handler, { once: true })
-            
+
             // Also set a timeout in case controllerchange doesn't fire
             setTimeout(() => {
                 navigator.serviceWorker.removeEventListener('controllerchange', handler)
                 resolve()
             }, 3000)
         })
-        
+
         // Tell the waiting service worker to skip waiting and become active
         registration.waiting.postMessage({ type: 'SKIP_WAITING' })
-        
+
         // Wait for the new service worker to take control
         await controllerChangePromise
-        
+
         // After activation, get the updated registration
         const updatedReg = await navigator.serviceWorker.getRegistration()
         if (updatedReg) {
@@ -127,11 +128,11 @@ async function subscribeToPush(): Promise<PushSubscription | null> {
             })
             // Also resolve if already active
             if (worker.state === 'activated') resolve()
-            
+
             // Timeout after 5 seconds
             setTimeout(resolve, 5000)
         })
-        
+
         // After installation, get the updated registration
         const updatedReg = await navigator.serviceWorker.getRegistration()
         if (updatedReg) {
@@ -166,24 +167,24 @@ async function subscribeToPush(): Promise<PushSubscription | null> {
     if (!vapidKey) {
         throw new Error('VAPID public key not configured')
     }
-    
+
     const subscription = await readyRegistration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidKey),
     })
-    
+
     return subscription
 }
 
 // Helper to get existing subscription
 async function getExistingSubscription(): Promise<PushSubscription | null> {
     if (!('serviceWorker' in navigator)) return null
-    
+
     // Add timeout to prevent hanging
     try {
         const registration = await Promise.race([
             navigator.serviceWorker.ready,
-            new Promise<never>((_, reject) => 
+            new Promise<never>((_, reject) =>
                 setTimeout(() => reject(new Error('Timeout')), 5000)
             )
         ])
@@ -281,11 +282,11 @@ function SettingsContent() {
     // Form State
     const [displayName, setDisplayName] = useState('')
     const [groupName, setGroupName] = useState('')
-    
+
     // Push notification state
     const [pushEnabled, setPushEnabled] = useState(false)
     const [pushLoading, setPushLoading] = useState(true)
-    
+
     // Admin settings state
     const [frequency, setFrequency] = useState(2)
     const [quietHoursStart, setQuietHoursStart] = useState<number | null>(null)
@@ -312,6 +313,7 @@ function SettingsContent() {
     const pushListQuery = trpc.push.list.useQuery(undefined, { enabled: false })
     const [testingSending, setTestingSending] = useState(false)
     const [resettingPush, setResettingPush] = useState(false)
+    const [calendarModalOpen, setCalendarModalOpen] = useState(false)
 
     // Redirect if unauthorized
     useEffect(() => {
@@ -325,7 +327,7 @@ function SettingsContent() {
         if (settingsQuery.data) {
             setUser(settingsQuery.data.user)
             setAllGroups(settingsQuery.data.groups || [])
-            
+
             // Set the active group as the initially selected one
             const activeGroup = settingsQuery.data.groups?.find(
                 (g: any) => g.id === settingsQuery.data.user.activeGroupId
@@ -352,12 +354,12 @@ function SettingsContent() {
                 setGroup(null)
                 setSelectedGroupId(null)
             }
-            
+
             setDisplayName(settingsQuery.data.user.displayName || '')
             setLoading(false)
         }
     }, [settingsQuery.data])
-    
+
     // Check push notification status on mount and periodically
     useEffect(() => {
         const checkPushStatus = async () => {
@@ -365,16 +367,16 @@ function SettingsContent() {
                 const subscription = await getExistingSubscription()
                 // Also verify with browser permission
                 const permission = 'Notification' in window ? Notification.permission : 'default'
-                
+
                 // Only mark as enabled if both subscription exists AND permission is granted
                 const isEnabled = !!subscription && permission === 'granted'
                 setPushEnabled(isEnabled)
-                
+
                 // Log state for debugging
-                console.log('[Settings] Push status check:', { 
-                    hasSubscription: !!subscription, 
+                console.log('[Settings] Push status check:', {
+                    hasSubscription: !!subscription,
                     permission,
-                    enabled: isEnabled 
+                    enabled: isEnabled
                 })
             } catch (e) {
                 console.error('Error checking push status:', e)
@@ -383,10 +385,10 @@ function SettingsContent() {
                 setPushLoading(false)
             }
         }
-        
+
         // Check on mount
         checkPushStatus()
-        
+
         // Re-check every 30 seconds when page is visible
         // This helps detect if iOS revoked the permission
         const intervalId = setInterval(() => {
@@ -394,7 +396,7 @@ function SettingsContent() {
                 checkPushStatus()
             }
         }, 30000)
-        
+
         return () => clearInterval(intervalId)
     }, [])
 
@@ -411,7 +413,7 @@ function SettingsContent() {
         navigator.serviceWorker.addEventListener('message', handler)
         return () => navigator.serviceWorker.removeEventListener('message', handler)
     }, [])
-    
+
     // Handle push notification toggle
     const handlePushToggle = async () => {
         setPushLoading(true)
@@ -454,11 +456,11 @@ function SettingsContent() {
             setPushLoading(false)
         }
     }
-    
+
     // Handle admin settings save
     const handleAdminSettingsSave = async (field: string, value: any) => {
         if (!isOwnerOfSelectedGroup || !group) return
-        
+
         setSaveStatus({ field, status: 'saving' })
         try {
             await updateGroupMutation.mutateAsync({
@@ -474,7 +476,7 @@ function SettingsContent() {
             setSaveStatus(prev => prev.field === field ? { ...prev, status: 'idle' } : prev)
         }
     }
-    
+
     // Handle switching the selected group in settings
     const handleGroupSelect = (groupId: string) => {
         const selectedGroup = allGroups.find(g => g.id === groupId)
@@ -488,7 +490,7 @@ function SettingsContent() {
             setVibeAverageHours(selectedGroup.vibeAverageHours ?? 24)
         }
     }
-    
+
     // Check if user is owner of the currently selected group
     const isOwnerOfSelectedGroup = group?.ownerId === user?.id
 
@@ -521,20 +523,20 @@ function SettingsContent() {
 
     const handleLeaveGroup = async () => {
         if (!group) return
-        
+
         const message = isOwnerOfSelectedGroup && group.members.length > 1
             ? 'Are you sure you want to leave this group? Ownership will be transferred to another member.'
             : isOwnerOfSelectedGroup
-            ? 'Are you sure you want to leave? The group will be deleted since you are the only member.'
-            : 'Are you sure you want to leave this group?'
-            
+                ? 'Are you sure you want to leave? The group will be deleted since you are the only member.'
+                : 'Are you sure you want to leave this group?'
+
         if (confirm(message)) {
             try {
                 await leaveGroupMutation.mutateAsync({ groupId: group.id })
                 // Remove the group from the list
                 const updatedGroups = allGroups.filter(g => g.id !== group.id)
                 setAllGroups(updatedGroups)
-                
+
                 if (updatedGroups.length > 0) {
                     // Switch to another group
                     handleGroupSelect(updatedGroups[0].id)
@@ -733,7 +735,7 @@ function SettingsContent() {
                                         <div className="text-xs text-gray-500">Get notified for vibe check-ins</div>
                                     </div>
                                 </div>
-                                <Button 
+                                <Button
                                     variant={pushEnabled ? "default" : "outline"}
                                     size="sm"
                                     onClick={handlePushToggle}
@@ -751,102 +753,129 @@ function SettingsContent() {
                             </div>
                             {pushEnabled && (
                                 <>
-                                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-xl">
-                                    <div className="flex items-center gap-3">
-                                        <Zap className="w-5 h-5 text-amber-500" />
-                                        <div>
-                                            <div className="font-semibold text-gray-700 dark:text-gray-200">Test Notification</div>
-                                            <div className="text-xs text-gray-500">Send a test push to verify it works</div>
+                                    <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-xl">
+                                        <div className="flex items-center gap-3">
+                                            <Zap className="w-5 h-5 text-amber-500" />
+                                            <div>
+                                                <div className="font-semibold text-gray-700 dark:text-gray-200">Test Notification</div>
+                                                <div className="text-xs text-gray-500">Send a test push to verify it works</div>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <Button 
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={async () => {
-                                            setTestingSending(true)
-                                            try {
-                                                const result = await pushSendTestMutation.mutateAsync()
-                                                if (result.success) {
-                                                    alert(`Test push sent to ${result.sent} subscription(s).\n\nNote: this counts successful sends to the push service; it does not guarantee the OS displayed a notification.`)
-                                                } else {
-                                                    alert(result.error || 'Failed to send test push')
-                                                }
-                                            } catch (e) {
-                                                alert(e instanceof Error ? e.message : 'Failed to send test push')
-                                            } finally {
-                                                setTestingSending(false)
-                                            }
-                                        }}
-                                        disabled={testingSending}
-                                        className="min-w-[80px]"
-                                    >
-                                        {testingSending ? (
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : (
-                                            'Send Test'
-                                        )}
-                                    </Button>
-                                </div>
-                                <div className="flex items-center justify-between p-4 bg-orange-50 dark:bg-orange-900/20 rounded-xl">
-                                    <div className="flex items-center gap-3">
-                                        <RefreshCw className="w-5 h-5 text-orange-500" />
-                                        <div>
-                                            <div className="font-semibold text-gray-700 dark:text-gray-200">Reset Push</div>
-                                            <div className="text-xs text-gray-500">Clear old subscriptions & re-register (troubleshooting)</div>
-                                        </div>
-                                    </div>
-                                    <Button 
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={async () => {
-                                            if (!confirm('This will clear all your push subscriptions and re-register this device. Continue?')) return
-                                            setResettingPush(true)
-                                            try {
-                                                // 1. Clear all server-side subscriptions
-                                                await pushClearAllMutation.mutateAsync()
-                                                
-                                                // 2. Unsubscribe browser-side if exists
-                                                const existingSub = await getExistingSubscription()
-                                                if (existingSub) {
-                                                    await existingSub.unsubscribe()
-                                                }
-                                                
-                                                setPushEnabled(false)
-                                                
-                                                // 3. Re-subscribe fresh
-                                                const newSub = await subscribeToPush()
-                                                if (newSub) {
-                                                    const json = newSub.toJSON()
-                                                    const p256dh = json.keys?.p256dh
-                                                    const auth = json.keys?.auth
-                                                    if (p256dh && auth) {
-                                                        await pushSubscribeMutation.mutateAsync({ endpoint: newSub.endpoint, p256dh, auth })
-                                                        setPushEnabled(true)
-                                                        alert('Push reset complete! Try Send Test now.')
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={async () => {
+                                                setTestingSending(true)
+                                                try {
+                                                    const result = await pushSendTestMutation.mutateAsync()
+                                                    if (result.success) {
+                                                        alert(`Test push sent to ${result.sent} subscription(s).\n\nNote: this counts successful sends to the push service; it does not guarantee the OS displayed a notification.`)
                                                     } else {
-                                                        await newSub.unsubscribe()
-                                                        alert('Failed to get push keys. Please try again.')
+                                                        alert(result.error || 'Failed to send test push')
                                                     }
+                                                } catch (e) {
+                                                    alert(e instanceof Error ? e.message : 'Failed to send test push')
+                                                } finally {
+                                                    setTestingSending(false)
                                                 }
-                                            } catch (e) {
-                                                alert(e instanceof Error ? e.message : 'Reset failed')
-                                            } finally {
-                                                setResettingPush(false)
-                                            }
-                                        }}
-                                        disabled={resettingPush}
-                                        className="min-w-[80px]"
-                                    >
-                                        {resettingPush ? (
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : (
-                                            'Reset'
-                                        )}
-                                    </Button>
-                                </div>
+                                            }}
+                                            disabled={testingSending}
+                                            className="min-w-[80px]"
+                                        >
+                                            {testingSending ? (
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                                'Send Test'
+                                            )}
+                                        </Button>
+                                    </div>
+                                    <div className="flex items-center justify-between p-4 bg-orange-50 dark:bg-orange-900/20 rounded-xl">
+                                        <div className="flex items-center gap-3">
+                                            <RefreshCw className="w-5 h-5 text-orange-500" />
+                                            <div>
+                                                <div className="font-semibold text-gray-700 dark:text-gray-200">Reset Push</div>
+                                                <div className="text-xs text-gray-500">Clear old subscriptions & re-register (troubleshooting)</div>
+                                            </div>
+                                        </div>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={async () => {
+                                                if (!confirm('This will clear all your push subscriptions and re-register this device. Continue?')) return
+                                                setResettingPush(true)
+                                                try {
+                                                    // 1. Clear all server-side subscriptions
+                                                    await pushClearAllMutation.mutateAsync()
+
+                                                    // 2. Unsubscribe browser-side if exists
+                                                    const existingSub = await getExistingSubscription()
+                                                    if (existingSub) {
+                                                        await existingSub.unsubscribe()
+                                                    }
+
+                                                    setPushEnabled(false)
+
+                                                    // 3. Re-subscribe fresh
+                                                    const newSub = await subscribeToPush()
+                                                    if (newSub) {
+                                                        const json = newSub.toJSON()
+                                                        const p256dh = json.keys?.p256dh
+                                                        const auth = json.keys?.auth
+                                                        if (p256dh && auth) {
+                                                            await pushSubscribeMutation.mutateAsync({ endpoint: newSub.endpoint, p256dh, auth })
+                                                            setPushEnabled(true)
+                                                            alert('Push reset complete! Try Send Test now.')
+                                                        } else {
+                                                            await newSub.unsubscribe()
+                                                            alert('Failed to get push keys. Please try again.')
+                                                        }
+                                                    }
+                                                } catch (e) {
+                                                    alert(e instanceof Error ? e.message : 'Reset failed')
+                                                } finally {
+                                                    setResettingPush(false)
+                                                }
+                                            }}
+                                            disabled={resettingPush}
+                                            className="min-w-[80px]"
+                                        >
+                                            {resettingPush ? (
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                                'Reset'
+                                            )}
+                                        </Button>
+                                    </div>
                                 </>
                             )}
                         </Card>
+
+                        <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
+                            <h2 className="font-semibold text-gray-900 dark:text-white">Calendar Reminders</h2>
+                            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-xl">
+                                <div className="flex items-center gap-3">
+                                    <Calendar className="w-5 h-5 text-primary" />
+                                    <div>
+                                        <div className="font-semibold text-gray-700 dark:text-gray-200">Add to Calendar</div>
+                                        <div className="text-xs text-gray-500">Schedule recurring vibe check-in reminders</div>
+                                    </div>
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCalendarModalOpen(true)}
+                                    className="min-w-[80px]"
+                                >
+                                    Configure
+                                </Button>
+                            </div>
+                        </Card>
+
+                        <CalendarModal
+                            isOpen={calendarModalOpen}
+                            onClose={() => setCalendarModalOpen(false)}
+                            checkInUrl={typeof window !== 'undefined' ? `${window.location.origin}/check-in` : '/check-in'}
+                        />
 
                         <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
                             <h2 className="font-semibold text-gray-900 dark:text-white">Application</h2>
@@ -944,7 +973,7 @@ function SettingsContent() {
                                 </select>
                             </Card>
                         )}
-                        
+
                         <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
                             <h2 className="font-semibold text-gray-900 dark:text-white">Group Details</h2>
 
@@ -1049,7 +1078,7 @@ function SettingsContent() {
                                     <span className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full">View only</span>
                                 )}
                             </div>
-                            
+
                             <div className={!isOwnerOfSelectedGroup ? 'opacity-60 pointer-events-none' : ''}>
                                 <div className="flex justify-between items-center mb-2">
                                     <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
@@ -1073,7 +1102,7 @@ function SettingsContent() {
                                 </div>
                                 <p className="text-xs text-gray-500 mt-1">How often members get pinged for check-ins</p>
                             </div>
-                                
+
                             <div className={`pt-2 border-t border-gray-100 dark:border-gray-700 ${!isOwnerOfSelectedGroup ? 'opacity-60 pointer-events-none' : ''}`}>
                                 <div className="flex justify-between items-center mb-2">
                                     <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
@@ -1101,7 +1130,7 @@ function SettingsContent() {
                                 </select>
                                 <p className="text-xs text-gray-500 mt-1">Time window for calculating the group vibe average</p>
                             </div>
-                                
+
                             <div className={`pt-2 border-t border-gray-100 dark:border-gray-700 ${!isOwnerOfSelectedGroup ? 'opacity-60 pointer-events-none' : ''}`}>
                                 <div className="flex items-center gap-2 mb-3">
                                     <Clock className="w-4 h-4 text-gray-500" />
